@@ -1,78 +1,118 @@
 globals [
- patch-num ;; global tracking of black patches
+ x
+ y
+ direction ;; 1 is up, 2 is right, 3 is down, 4 is left
+ movement ;; how much to move
+ current-move ;; how much we have moved
 ]
 
-patches-own [ exposed ]
-
 to setup
-  clear-all ;; reset variables
-  reset-ticks ;; set clock to 0
-  set patch-num 1 ;; initialize with 1 infected patch
+  clear-all
+  reset-ticks ;; need to put reset-ticks after clear-all
+
   ask patches [
-  set pcolor white ;; set all patches to the color white
-    set exposed 0
-    ;; set middle patch to the color infected
-    if pxcor = 0 and pycor = 0 [
-    set pcolor patch-color
-      set exposed 2
+   if pxcor = 0 and pycor = 0 [
+     set pcolor one-of base-colors
     ]
   ]
+  set x 0
+  set y 0
+  set movement 1
+  set current-move 0
+  set direction 1
 end
 
 to go
-    ifelse sequential
-    [infect-sequence]
-    [infect]
-
-  tick ;; count time
-end
-
-;; infect randomly asks patches to check if they will infect their neighbors
-to infect
-   ask patches [
-      ;; if a patch is infected color
-   if exposed = 2 [
-      ;; set neighbors to be infected color if they are white
-      ask neighbors4 [
-        if exposed = 0 [
-        set pcolor patch-color
-          set patch-num (patch-num + 1) ;; increment counter
-          set exposed 2
-        ]
-      ]
-   ]
- ]
-end
-
-;; infect-sequence is a variant in which all infected patches first expose adjacent neighbors then
-;; all exposed patches become infected
-to infect-sequence
   ask patches [
-      ;; if a patch is infected color
-   if exposed = 2 [
-      ;; set neighbors to be flagged for infection
-      ask neighbors4 [
-        if exposed = 0 [
-        set exposed 1
-        ]
-      ]
+   if direction = 1 [
+   turnUp
    ]
+    if direction = 2 [
+      turnRight
+    ]
+    if direction = 3 [
+     turnDown
+    ]
+    if direction = 4 [
+     turnLeft
+    ]
   ]
-  ask patches [
-    ;; now tell patches to become infected if exposed
-   if exposed = 1 [
-     set pcolor patch-color
-     set exposed 2
-     set patch-num (patch-num + 1) ;; increment counter
-   ]
-  ]
+  tick
 end
+
+to turnUp
+    if pxcor = x and pycor = y [
+      ask neighbors4 [
+       if pycor = (y + 1) [
+         set pcolor one-of base-colors
+         set y (y + 1)
+         set current-move (current-move + 1)
+        if current-move = movement [
+          set direction 2
+          set current-move 0
+        ]
+
+       ]
+     ]
+   ]
+end
+
+to turnRight
+ if pxcor = x and pycor = y [
+      ask neighbors4 [
+       if pxcor = (x + 1) [
+         set pcolor one-of base-colors
+         set x (x + 1)
+         set current-move (current-move + 1)
+        if current-move = movement [
+          set direction 3
+          set movement (movement + 1)
+          set current-move 0
+        ]
+       ]
+     ]
+   ]
+end
+
+to turnDown
+  if pxcor = x and pycor = y [
+      ask neighbors4 [
+       if pycor = (y - 1) [
+         set pcolor one-of base-colors
+         set y (y - 1)
+         set current-move (current-move + 1)
+        if current-move = movement [
+          set direction 4
+          set current-move 0
+        ]
+       ]
+     ]
+   ]
+end
+
+to turnLeft
+ if pxcor = x and pycor = y [
+      ask neighbors4 [
+       if pxcor = (x - 1) [
+         set pcolor one-of base-colors
+         set x (x - 1)
+         set current-move (current-move + 1)
+        if current-move = movement [
+          set direction 1
+          set movement (movement + 1)
+          set current-move 0
+        ]
+       ]
+     ]
+   ]
+end
+
 @#$#@#$#@
 GRAPHICS-WINDOW
-281
-50
-718
-488
+210
+10
+647
+448
 -1
 -1
 13.0
@@ -96,10 +136,10 @@ ticks
 30.0
 
 BUTTON
-37
-68
-100
-101
+36
+63
+99
+96
 NIL
 setup
 NIL
@@ -113,10 +153,10 @@ NIL
 1
 
 BUTTON
-123
-70
-186
-103
+109
+148
+172
+181
 NIL
 go
 T
@@ -128,45 +168,6 @@ NIL
 NIL
 NIL
 0
-
-PLOT
-51
-167
-251
-317
-Number of Infected Patches
-time
-patch-num
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot patch-num"
-
-CHOOSER
-77
-381
-215
-426
-patch-color
-patch-color
-0 15 105 55 45 25 115
-3
-
-SWITCH
-58
-439
-170
-472
-sequential
-sequential
-1
-1
--1000
 
 @#$#@#$#@
 ## WHAT IS IT?

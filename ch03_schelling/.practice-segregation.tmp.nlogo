@@ -1,81 +1,101 @@
 globals [
- patch-num ;; global tracking of black patches
+  average-similarity  ;; avg proportion of similar neighbors
+  unhappiness  ;; proprortion of the agents that are unhappy
+  prop-uniform ;; proportion of agents that only have neighbors of same type
 ]
 
-patches-own [ exposed ]
+turtles-own [
+  happy?           ;; are a sufficient proportion of my neighbors like me?
+  prop-similar-neighbors ;;proportion of neighbors like me
+  uniform? ;; if neighbors are of the same type
+]
 
 to setup
-  clear-all ;; reset variables
-  reset-ticks ;; set clock to 0
-  set patch-num 1 ;; initialize with 1 infected patch
+  clear-all
+  ifelse (exact?)
+  [make-turtles-exact]
+  [make-turtles]
+
+  update-turtles
+  update-globals
+  reset-ticks
+end
+
+;; create turtles on random patches.
+to make-turtles
+  ;; Sets chance of spawn turtles
   ask patches [
-  set pcolor white ;; set all patches to the color white
-    set exposed 0
-    ;; set middle patch to the color infected
-    if pxcor = 0 and pycor = 0 [
-    set pcolor patch-color
-      set exposed 2
+    if random-float 1 < density [   ;; set the occupancy density
+      sprout 1 [
+        set shape "square"
+        set color one-of [yellow blue]
+      ]
     ]
   ]
 end
 
+to make-turtles-exact
+    ;; Gets specific number to spawn turtles
+  ask n-of round( density * (count patches) ) patches [
+      sprout 1 [
+        set shape "square"
+        set color one-of [yellow blue]
+      ]
+  ]
+end
+
+;; run the model for one tick
 to go
-    ifelse sequential
-    [infect-sequence]
-    [infect]
-
-  tick ;; count time
+  if all? turtles [ happy? ] [ stop ]
+  move-unhappy-turtles
+  update-turtles
+  update-globals
+  tick
 end
 
-;; infect randomly asks patches to check if they will infect their neighbors
-to infect
-   ask patches [
-      ;; if a patch is infected color
-   if exposed = 2 [
-      ;; set neighbors to be infected color if they are white
-      ask neighbors4 [
-        if exposed = 0 [
-        set pcolor patch-color
-          set patch-num (patch-num + 1) ;; increment counter
-          set exposed 2
-        ]
-      ]
-   ]
- ]
-end
-
-;; infect-sequence is a variant in which all infected patches first expose adjacent neighbors then
-;; all exposed patches become infected
-to infect-sequence
-  ask patches [
-      ;; if a patch is infected color
-   if exposed = 2 [
-      ;; set neighbors to be flagged for infection
-      ask neighbors4 [
-        if exposed = 0 [
-        set exposed 1
-        ]
-      ]
-   ]
-  ]
-  ask patches [
-    ;; now tell patches to become infected if exposed
-   if exposed = 1 [
-     set pcolor patch-color
-     set exposed 2
-     set patch-num (patch-num + 1) ;; increment counter
-   ]
+;; unhappy agemts try a new spot
+to move-unhappy-turtles
+  ask turtles with [ not happy? ]
+    [ move-to one-of patches with [not any? turtles-here]
   ]
 end
+
+;;set turtles to unhapy if proportion of similar neighbors is below threshold, otherwise set to happy
+to update-turtles
+  ask turtles [
+    ;; in next two lines, we use "neighbors" to test the eight patches
+    ;; surrounding the current patch
+    let similar-nearby count (turtles-on neighbors)  with [ color = [ color ] of myself ]
+    let different-nearby count (turtles-on neighbors) with [ color != [ color ] of myself ]
+    let total-nearby count (turtles-on neighbors)
+    ifelse (total-nearby = 0)
+    [set prop-similar-neighbors 1] ;;always happy if alone.
+    [set prop-similar-neighbors (similar-nearby / total-nearby)]
+    set happy? (prop-similar-neighbors >= similarity-threshold)
+    set uniform? (different-nearby = 0)
+  ]
+end
+
+to update-globals
+  let similar-neighbors sum [ prop-similar-neighbors ] of turtles
+  set average-similarity (similar-neighbors / count turtles)
+  set unhappiness (count turtles with [ not happy? ]) / (count turtles)
+  set prop-uniform (count turtles with [ uniform? ]) / (count turtles)
+end
+
+
+
+; Copyright 2023 Paul E. Smaldino.
+; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-281
-50
-718
-488
+353
+10
+769
+427
 -1
 -1
-13.0
+8.0
 1
 10
 1
@@ -85,22 +105,77 @@ GRAPHICS-WINDOW
 1
 1
 1
--16
-16
--16
-16
-0
-0
+-25
+25
+-25
+25
+1
+1
 1
 ticks
 30.0
 
-BUTTON
-37
-68
-100
-101
+MONITOR
+218
+324
+305
+369
+unhappiness
+unhappiness
+3
+1
+11
+
+MONITOR
+214
+190
+283
+235
+avg sim
+average-similarity
+3
+1
+11
+
+PLOT
+14
+141
+210
+262
+Average Similarity
+time
+similarity
+0.0
+5.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"percent" 1.0 0 -2674135 true "" "plot average-similarity"
+
+SLIDER
+20
+95
+281
+128
+similarity-threshold
+similarity-threshold
+0
+1
+0.52
+.01
+1
 NIL
+HORIZONTAL
+
+BUTTON
+19
+15
+99
+48
+setup
 setup
 NIL
 1
@@ -113,11 +188,11 @@ NIL
 1
 
 BUTTON
-123
-70
-186
-103
-NIL
+198
+15
+278
+48
+go
 go
 T
 1
@@ -129,14 +204,97 @@ NIL
 NIL
 0
 
+BUTTON
+103
+15
+193
+48
+go once
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+SLIDER
+20
+54
+280
+87
+density
+density
+0
+.99
+0.5
+.01
+1
+NIL
+HORIZONTAL
+
 PLOT
-51
-167
-251
-317
-Number of Infected Patches
+14
+267
+210
+387
+Unhappiness
 time
-patch-num
+unhappiness
+0.0
+5.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -14439633 true "" "plot unhappiness"
+
+MONITOR
+217
+276
+305
+321
+num-unhappy
+count turtles with [not happy?]
+1
+1
+11
+
+MONITOR
+213
+140
+283
+185
+# agents
+count turtles
+1
+1
+11
+
+SWITCH
+354
+434
+457
+467
+exact?
+exact?
+0
+1
+-1000
+
+PLOT
+13
+391
+210
+521
+Average Uniformity
+NIL
+NIL
 0.0
 10.0
 0.0
@@ -145,65 +303,48 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot patch-num"
+"default" 1.0 0 -16777216 true "" "plot prop-uniform"
 
-CHOOSER
-77
-381
-215
-426
-patch-color
-patch-color
-0 15 105 55 45 25 115
-3
-
-SWITCH
-58
+MONITOR
+214
+394
+302
 439
-170
-472
-sequential
-sequential
+NIL
+prop-uniform
+17
 1
-1
--1000
+11
 
 @#$#@#$#@
-## WHAT IS IT?
+## Model Information and Materials
 
-(a general understanding of what the model is trying to show or explain)
+This model is original material created by Paul E. Smaldino, building on previous work by Uri Wilensky.   
 
-## HOW IT WORKS
+## References and Citation
 
-(what rules the agents use to create the overall behavior of the model)
+For this model:
 
-## HOW TO USE IT
+* Smaldino PE (2023). Segregation. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
-(how to use the model, including a description of each of the items in the Interface tab)
+For the book:
 
-## THINGS TO NOTICE
+* Smaldino PE (2023). Modeling Social Behavior: Mathematical and Agent-Based Models of Social Dynamics and Cultural Evolution. Princeton University Press. 
 
-(suggested things for the user to notice while running the model)
+Original model upon which this code is built:
 
-## THINGS TO TRY
+* Wilensky, U. (1997). NetLogo Segregation model. http://ccl.northwestern.edu/netlogo/models/Segregation. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
+For the NetLogo:
 
-## EXTENDING THE MODEL
+* Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
 
-## NETLOGO FEATURES
+## Licence
 
-(interesting or unusual features of NetLogo that the model uses, particularly in the Code tab; or where workarounds were needed for missing features)
+![CC BY-NC-SA 4.0](http://ccl.northwestern.edu/images/creativecommons/byncsa.png)
 
-## RELATED MODELS
-
-(models in the NetLogo Models Library and elsewhere which are of related interest)
-
-## CREDITS AND REFERENCES
-
-(a reference to the model's URL on the web if it has one, as well as any other necessary credits, citations, and links)
+This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. http://creativecommons.org/licenses/by-nc-sa/4.0/
 @#$#@#$#@
 default
 true
@@ -313,6 +454,22 @@ Circle -16777216 true false 60 75 60
 Circle -16777216 true false 180 75 60
 Polygon -16777216 true false 150 168 90 184 62 210 47 232 67 244 90 220 109 205 150 198 192 205 210 220 227 242 251 229 236 206 212 183
 
+face-happy
+false
+0
+Circle -7500403 true true 8 8 285
+Circle -16777216 true false 60 75 60
+Circle -16777216 true false 180 75 60
+Polygon -16777216 true false 150 255 90 239 62 213 47 191 67 179 90 203 109 218 150 225 192 218 210 203 227 181 251 194 236 217 212 240
+
+face-sad
+false
+0
+Circle -7500403 true true 8 8 285
+Circle -16777216 true false 60 75 60
+Circle -16777216 true false 180 75 60
+Polygon -16777216 true false 150 168 90 184 62 210 47 232 67 244 90 220 109 205 150 198 192 205 210 220 227 242 251 229 236 206 212 183
+
 fish
 false
 0
@@ -385,6 +542,15 @@ Rectangle -7500403 true true 127 79 172 94
 Polygon -7500403 true true 195 90 240 150 225 180 165 105
 Polygon -7500403 true true 105 90 60 150 75 180 135 105
 
+person2
+false
+0
+Circle -7500403 true true 105 0 90
+Polygon -7500403 true true 105 90 120 195 90 285 105 300 135 300 150 225 165 300 195 300 210 285 180 195 195 90
+Rectangle -7500403 true true 127 79 172 94
+Polygon -7500403 true true 195 90 285 180 255 210 165 105
+Polygon -7500403 true true 105 90 15 180 60 195 135 105
+
 plant
 false
 0
@@ -397,32 +563,40 @@ Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
 
-sheep
-false
-15
-Circle -1 true true 203 65 88
-Circle -1 true true 70 65 162
-Circle -1 true true 150 105 120
-Polygon -7500403 true false 218 120 240 165 255 165 278 120
-Circle -7500403 true false 214 72 67
-Rectangle -1 true true 164 223 179 298
-Polygon -1 true true 45 285 30 285 30 240 15 195 45 210
-Circle -1 true true 3 83 150
-Rectangle -1 true true 65 221 80 296
-Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
-Polygon -7500403 true false 276 85 285 105 302 99 294 83
-Polygon -7500403 true false 219 85 210 105 193 99 201 83
-
 square
 false
 0
 Rectangle -7500403 true true 30 30 270 270
+
+square - happy
+false
+0
+Rectangle -7500403 true true 30 30 270 270
+Polygon -16777216 false false 75 195 105 240 180 240 210 195 75 195
+
+square - unhappy
+false
+0
+Rectangle -7500403 true true 30 30 270 270
+Polygon -16777216 false false 60 225 105 180 195 180 240 225 75 225
 
 square 2
 false
 0
 Rectangle -7500403 true true 30 30 270 270
 Rectangle -16777216 true false 60 60 240 240
+
+square-small
+false
+0
+Rectangle -7500403 true true 45 45 255 255
+
+square-x
+false
+0
+Rectangle -7500403 true true 30 30 270 270
+Line -16777216 false 75 90 210 210
+Line -16777216 false 210 90 75 210
 
 star
 false
@@ -458,6 +632,11 @@ false
 0
 Polygon -7500403 true true 150 30 15 255 285 255
 Polygon -16777216 true false 151 99 225 223 75 224
+
+triangle2
+false
+0
+Polygon -7500403 true true 150 0 0 300 300 300
 
 truck
 false
@@ -497,13 +676,6 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
-wolf
-false
-0
-Polygon -16777216 true false 253 133 245 131 245 133
-Polygon -7500403 true true 2 194 13 197 30 191 38 193 38 205 20 226 20 257 27 265 38 266 40 260 31 253 31 230 60 206 68 198 75 209 66 228 65 243 82 261 84 268 100 267 103 261 77 239 79 231 100 207 98 196 119 201 143 202 160 195 166 210 172 213 173 238 167 251 160 248 154 265 169 264 178 247 186 240 198 260 200 271 217 271 219 262 207 258 195 230 192 198 210 184 227 164 242 144 259 145 284 151 277 141 293 140 299 134 297 127 273 119 270 105
-Polygon -7500403 true true -1 195 14 180 36 166 40 153 53 140 82 131 134 133 159 126 188 115 227 108 236 102 238 98 268 86 269 92 281 87 269 103 269 113
-
 x
 false
 0
@@ -514,6 +686,41 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="first batch run" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="100"/>
+    <metric>count turtles</metric>
+    <metric>count turtles with [not happy?]</metric>
+    <metric>percent-similar</metric>
+    <enumeratedValueSet variable="density">
+      <value value="40"/>
+      <value value="65"/>
+      <value value="90"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="min-pct-similar" first="5" step="5" last="70"/>
+  </experiment>
+  <experiment name="second batch run" repetitions="100" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="100"/>
+    <metric>count turtles</metric>
+    <metric>count turtles with [not happy?]</metric>
+    <metric>percent-similar</metric>
+    <steppedValueSet variable="density" first="10" step="10" last="90"/>
+    <steppedValueSet variable="min-pct-similar" first="5" step="5" last="70"/>
+  </experiment>
+  <experiment name="book batch" repetitions="100" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="100"/>
+    <metric>average-similarity</metric>
+    <metric>unhappiness</metric>
+    <steppedValueSet variable="density" first="0.1" step="0.1" last="0.9"/>
+    <steppedValueSet variable="similarity-threshold" first="0.05" step="0.05" last="0.7"/>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default

@@ -4,7 +4,6 @@ globals [
  dir ;; 1 up, 2 right, 3 down, 4 left
  dist ;; current unit
  dist-reach ;; how many units to move
- blank-flag ;; set spiral to be blank
 ]
 
 to setup
@@ -21,7 +20,6 @@ to setup
   set dir 1 ;; initialiaze up
   set dist 0 ;; initial movement
   set dist-reach 1 ;; initial distance
-  set blank-flag 0
 end
 
 to go
@@ -47,9 +45,7 @@ to go
 
    ask patches [
    if pxcor = xpos and pycor = ypos [
-      if blank-flag = 0 [
-       set pcolor one-of base-colors
-      ]
+      set pcolor one-of base-colors
     ]
   ]
 
