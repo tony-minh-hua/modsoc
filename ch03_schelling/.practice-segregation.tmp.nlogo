@@ -2,6 +2,7 @@ globals [
   average-similarity  ;; avg proportion of similar neighbors
   unhappiness  ;; proprortion of the agents that are unhappy
   prop-uniform ;; proportion of agents that only have neighbors of same type
+  group-id ;; list of group IDs
 ]
 
 turtles-own [
@@ -12,6 +13,13 @@ turtles-own [
 
 to setup
   clear-all
+
+  ask patches [
+    set pcolor white
+  ]
+
+  set group-id n-values num-groups [i -> ( (1 + i) * 7 )]
+
   ifelse (exact?)
   [make-turtles-exact]
   [make-turtles]
@@ -23,12 +31,12 @@ end
 
 ;; create turtles on random patches.
 to make-turtles
+
   ;; Sets chance of spawn turtles
   ask patches [
     if random-float 1 < density [   ;; set the occupancy density
       sprout 1 [
-        set shape "square"
-        set color one-of [yellow blue]
+        instantiate-turtle
       ]
     ]
   ]
@@ -38,10 +46,14 @@ to make-turtles-exact
     ;; Gets specific number to spawn turtles
   ask n-of round( density * (count patches) ) patches [
       sprout 1 [
-        set shape "square"
-        set color one-of [yellow blue]
+        instantiate-turtle
       ]
   ]
+end
+
+to instantiate-turtle
+  set shape "square"
+  set color one-of group-id
 end
 
 ;; run the model for one tick
@@ -69,7 +81,7 @@ to update-turtles
     let different-nearby count (turtles-on neighbors) with [ color != [ color ] of myself ]
     let total-nearby count (turtles-on neighbors)
     ifelse (total-nearby = 0)
-    [set prop-similar-neighbors 1] ;;always happy if alone.
+    [set prop-similar-neighbors ifelse-value lone-loners? [1] [] ;;always happy if alone.
     [set prop-similar-neighbors (similar-nearby / total-nearby)]
     set happy? (prop-similar-neighbors >= similarity-threshold)
     set uniform? (different-nearby = 0)
@@ -116,10 +128,10 @@ ticks
 30.0
 
 MONITOR
-218
-324
-305
-369
+215
+316
+302
+361
 unhappiness
 unhappiness
 3
@@ -164,7 +176,7 @@ similarity-threshold
 similarity-threshold
 0
 1
-0.52
+0.6
 .01
 1
 NIL
@@ -230,7 +242,7 @@ density
 density
 0
 .99
-0.5
+0.4
 .01
 1
 NIL
@@ -255,10 +267,10 @@ PENS
 "default" 1.0 0 -14439633 true "" "plot unhappiness"
 
 MONITOR
-217
-276
-305
-321
+214
+268
+302
+313
 num-unhappy
 count turtles with [not happy?]
 1
@@ -277,10 +289,10 @@ count turtles
 11
 
 SWITCH
-354
-434
-457
-467
+211
+443
+314
+476
 exact?
 exact?
 0
@@ -315,6 +327,28 @@ prop-uniform
 17
 1
 11
+
+INPUTBOX
+345
+449
+421
+509
+num-groups
+5.0
+1
+0
+Number
+
+SWITCH
+209
+481
+335
+514
+lonely-loners?
+lonely-loners?
+1
+1
+-1000
 
 @#$#@#$#@
 ## Model Information and Materials
