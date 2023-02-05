@@ -93,8 +93,8 @@ SLIDER
 turning-angle
 turning-angle
 0
-180
-33.0
+360
+40.0
 1
 1
 NIL
@@ -468,6 +468,14 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment 1" repetitions="100" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>distance-from-center</metric>
+    <steppedValueSet variable="turning-angle" first="0" step="10" last="360"/>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default

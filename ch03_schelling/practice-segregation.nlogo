@@ -176,7 +176,7 @@ similarity-threshold
 similarity-threshold
 0
 1
-0.6
+0.75
 .01
 1
 NIL
@@ -242,7 +242,7 @@ density
 density
 0
 .99
-0.4
+0.9
 .01
 1
 NIL
@@ -334,7 +334,7 @@ INPUTBOX
 421
 509
 num-groups
-5.0
+2.0
 1
 0
 Number
@@ -753,6 +753,24 @@ NetLogo 6.3.0
     <metric>unhappiness</metric>
     <steppedValueSet variable="density" first="0.1" step="0.1" last="0.9"/>
     <steppedValueSet variable="similarity-threshold" first="0.05" step="0.05" last="0.7"/>
+  </experiment>
+  <experiment name="experiment 1" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>average-similarity</metric>
+    <metric>prop-uniform</metric>
+    <enumeratedValueSet variable="density">
+      <value value="0.45"/>
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="exact?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-groups">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="similarity-threshold" first="0.05" step="0.05" last="0.75"/>
   </experiment>
 </experiments>
 @#$#@#$#@
