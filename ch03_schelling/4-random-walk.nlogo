@@ -14,10 +14,10 @@ end
 to go
   ask turtles [
    if ticks >= num-ticks [stop]
-   forward 0.1
    pen-down
    right random-float turning-angle
    left random-float turning-angle
+   forward 0.1
    set distance-from-center distance patch 0 0
   ]
   if ticks >= num-ticks [stop]
