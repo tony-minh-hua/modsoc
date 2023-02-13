@@ -124,6 +124,10 @@ to setmaxinfect
   if maximum-infection < x [set maximum-infection x]
 end
 
+to-report maximum-infection-rate
+  report (maximum-infection / num-turtles)
+end
+
 ; Copyright 2023 Paul E. Smaldino.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
@@ -344,6 +348,17 @@ MONITOR
 412
 NIL
 maximum-infection
+17
+1
+11
+
+MONITOR
+371
+368
+519
+413
+NIL
+maximum-infection-rate
 17
 1
 11

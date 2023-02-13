@@ -1,6 +1,10 @@
 ;;A simple model of adoption/contagion. Agents move around at random.
 ;;They adopt a behavior either with a fixed probability or by social influence
 
+globals[
+ dead-zombies
+]
+
 turtles-own [
   infected?
   turtle-speed
@@ -11,6 +15,7 @@ turtles-own [
 
 to setup
   clear-all
+  set dead-zombies 0
   setup-turtles
   setup-infected
   recolor
@@ -77,6 +82,7 @@ to end-infect
   ask turtles with [infected?] [
     if random-float 1 < zombie-death-rate
       [die]
+
   ]
 end
 
@@ -118,17 +124,6 @@ GRAPHICS-WINDOW
 1
 ticks
 30.0
-
-MONITOR
-0
-0
-0
-0
-NIL
-NIL
-17
-1
-11
 
 BUTTON
 33
@@ -188,7 +183,7 @@ speed
 speed
 0.1
 2
-0.3
+0.6
 .1
 1
 NIL
@@ -281,7 +276,7 @@ zombie-speed
 zombie-speed
 0
 2
-2.0
+0.4
 0.1
 1
 NIL
@@ -301,6 +296,28 @@ zombie-death-rate
 1
 NIL
 HORIZONTAL
+
+MONITOR
+231
+338
+404
+383
+NIL
+count turtles with [infected?]
+17
+1
+11
+
+MONITOR
+421
+340
+511
+385
+NIL
+dead-zombies
+17
+1
+11
 
 @#$#@#$#@
 ## Model Information and Materials

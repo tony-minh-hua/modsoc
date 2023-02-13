@@ -1,13 +1,15 @@
 ;;A simple model of adoption/contagion. Agents move around at random.
-;;They adopt a behavior either with a fixed probability or by social influence
-
-globals[
- dead-zombies
+;;They either spontaneously adopt a behavior or adopt it via social influence (contagion)
+;;This model adds recovery, so agents can dis-adopt and become immune
+globals [
+ maximum-infection
 ]
 
 turtles-own [
   infected?
+  immune?
   turtle-speed
+  turtle-infect
 ]
 
 
@@ -15,7 +17,7 @@ turtles-own [
 
 to setup
   clear-all
-  set dead-zombies 0
+  set maximum-infection 0
   setup-turtles
   setup-infected
   recolor
@@ -25,9 +27,20 @@ end
 ;;create the agents
 to setup-turtles
   create-turtles num-turtles [
-    set turtle-speed speed
-    set shape "circle"
+    ifelse (random-float 1 < prop-safe)
+    [set turtle-speed 0.1
+     set turtle-infect 0.01
+     set shape "square"
+    ]
+    [set turtle-speed speed
+     set turtle-infect transmissibility
+     set shape "circle"
+     set color white
+    ]
+
+
     set infected? false ;;default to uninfected
+    set immune? false
     setxy random-xcor random-ycor ;;give random location
   ]
 end
@@ -38,53 +51,57 @@ to setup-infected
   [set init-infected 1]
   ask n-of init-infected turtles [
     set infected? true
-    set turtle-speed zombie-speed
   ]
 end
 
 ;;update agents' color based on infection status.
 ;;red = infected, white = uninfected
 to recolor
- ask turtles [
-  ifelse infected?
-  [set color red]
-  [set color white]
- ]
+  ask turtles [
+    ifelse infected?
+    [set color red]
+    [ifelse immune?
+      [set color grey]
+      [set color white]
+    ]
+  ]
 end
-
 
 
 ;;--DYNAMICS PROCEDURES------------------
 
 to go
-  ;;stop the simulation if everyone is infected
-  if (count turtles with [infected?]) = num-turtles [ stop ]
+  ;;stop the simulation if everyone or no one is infected
+;  if (count turtles with [infected?]) = num-turtles or
+;     (count turtles with [infected?]) = 0
+;  [ stop ]
   infect-susceptibles ;; S -> I
-  end-infect
+  recover-infecteds ;; I -> S
   recolor
   move
+  setmaxinfect
   tick
 end
 
 ;;infected agents with probability dependent on transmissibility, number of infected neighbors, and
 ;;the probability of spontaneous adoption.
 to infect-susceptibles ;; S -> I
-  ask turtles with [not infected?] [
+  ask turtles with [not infected? and not immune?][
     let infected-neighbors (count other turtles with [color = red] in-radius 1)
-    if random-float 1 <  1 - (((1 - transmissibility) ^ infected-neighbors) * (1 - spontaneous-infect))
-    [set infected? true
-     set turtle-speed zombie-speed]
+    if (random-float 1 <  1 - (((1 - turtle-infect) ^ infected-neighbors) * (1 - spontaneous-infect)))
+    [set infected? true]
   ]
 end
 
-;;when infected agents die
-to end-infect
-  ask turtles with [infected?] [
-    if random-float 1 < zombie-death-rate
-      [set dead-zombies (dead-zombies + 1)
-        die
+;;infected agents recover with probability recovery-rate
+to recover-infecteds ;; I -> R
+  ask turtles with [infected? and color = red] ;;ensure agents are infected for at least one full tick
+  [
+    if random-float 1 < recovery-rate [
+      set infected? false
+      if remove-recovered?
+      [ set immune? true ]
     ]
-
   ]
 end
 
@@ -97,14 +114,28 @@ to move
   ]
 end
 
+
+to-report prop-infected
+  report (count turtles with [infected?]) / num-turtles
+end
+
+to setmaxinfect
+  let x count turtles with [infected?]
+  if maximum-infection < x [set maximum-infection x]
+end
+
+to-report maximum-infection-rate
+  report (m)
+end
+
 ; Copyright 2023 Paul E. Smaldino.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-221
-18
-526
-324
+218
+30
+523
+336
 -1
 -1
 9.0
@@ -129,9 +160,9 @@ ticks
 
 BUTTON
 33
-44
+30
 118
-77
+63
 NIL
 setup
 NIL
@@ -146,9 +177,9 @@ NIL
 
 BUTTON
 123
-44
+30
 206
-77
+63
 NIL
 go
 T
@@ -163,14 +194,14 @@ NIL
 
 SLIDER
 34
-86
+72
 206
-119
+105
 num-turtles
 num-turtles
 1
 1000
-300.0
+1000.0
 1
 1
 NIL
@@ -178,14 +209,14 @@ HORIZONTAL
 
 SLIDER
 35
-170
+156
 207
-203
+189
 speed
 speed
 0.1
-2
-0.6
+3
+1.0
 .1
 1
 NIL
@@ -193,14 +224,14 @@ HORIZONTAL
 
 SLIDER
 36
-129
+115
 208
-162
+148
 init-infected
 init-infected
 1
 10
-3.0
+1.0
 1
 1
 NIL
@@ -208,24 +239,24 @@ HORIZONTAL
 
 SLIDER
 36
-290
+276
 208
-323
+309
 transmissibility
 transmissibility
 0
 1
-0.2
-.01
+0.1
+.005
 1
 NIL
 HORIZONTAL
 
 PLOT
-534
-19
-871
-321
+531
+31
+868
+333
 Infection rate
 time
 Proportion infected
@@ -241,14 +272,14 @@ PENS
 
 SLIDER
 35
-211
+197
 207
-244
+230
 turning-angle
 turning-angle
 0
 360
-60.0
+360.0
 1
 1
 NIL
@@ -256,9 +287,9 @@ HORIZONTAL
 
 SLIDER
 35
-251
+237
 208
-284
+270
 spontaneous-infect
 spontaneous-infect
 0
@@ -270,53 +301,64 @@ NIL
 HORIZONTAL
 
 SLIDER
-36
-329
+37
+316
 208
-362
-zombie-speed
-zombie-speed
+349
+recovery-rate
+recovery-rate
 0
-2
-0.4
-0.1
+1
+0.01
+.001
 1
 NIL
 HORIZONTAL
 
-SLIDER
-36
-368
-208
-401
-zombie-death-rate
-zombie-death-rate
+SWITCH
+37
+356
+209
+389
+remove-recovered?
+remove-recovered?
 0
 1
-0.05
+-1000
+
+SLIDER
+37
+395
+209
+428
+prop-safe
+prop-safe
+0
+1
+0.08
 0.01
 1
 NIL
 HORIZONTAL
 
 MONITOR
-231
-338
-404
-383
+243
+367
+359
+412
 NIL
-count turtles with [infected?]
+maximum-infection
 17
 1
 11
 
 MONITOR
-421
-340
-511
-385
+371
+368
+519
+413
 NIL
-dead-zombies
+maximum-infection-rate
 17
 1
 11
@@ -330,7 +372,7 @@ This model is original material created by Paul E. Smaldino.
 
 For this model:
 
-* Smaldino PE (2023). Contagion: SI. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
+* Smaldino PE (2023). Contagion:SIR. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
 For the book:
 
@@ -656,6 +698,130 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="100"/>
+      <value value="500"/>
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.3"/>
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="recovery-rate">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-infected">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="speed">
+      <value value="0.5"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="0"/>
+      <value value="45"/>
+      <value value="180"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="remove-recovered?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="testrun" repetitions="100" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="300"/>
+    <metric>infection-rate</metric>
+    <metric>contact-rate</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.4"/>
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="recovery-rate" first="0.01" step="0.01" last="0.2"/>
+    <enumeratedValueSet variable="init-infected">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="speed">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="60"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spontaneous-infect">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.025"/>
+      <value value="0.05"/>
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="recovery-rate">
+      <value value="0.01"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-infected">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="speed">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="60"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="remove-recovered?">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experimentflatten" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>prop-infected</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spontaneous-infect">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.025"/>
+      <value value="0.05"/>
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="recovery-rate">
+      <value value="0.01"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-infected">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="speed">
+      <value value="0.5"/>
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="360"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="remove-recovered?">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
