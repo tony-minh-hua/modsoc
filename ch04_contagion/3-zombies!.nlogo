@@ -58,7 +58,9 @@ end
 
 to go
   ;;stop the simulation if everyone is infected
-  if (count turtles with [infected?]) = num-turtles [ stop ]
+  if (count turtles with [infected?]) = num-turtles or
+  (count turtles with [infected?]) = 0
+  [ stop ]
   infect-susceptibles ;; S -> I
   end-infect
   recolor
@@ -278,7 +280,7 @@ zombie-speed
 zombie-speed
 0
 2
-0.4
+0.55
 0.1
 1
 NIL
@@ -293,7 +295,7 @@ zombie-death-rate
 zombie-death-rate
 0
 1
-0.05
+0.7
 0.01
 1
 NIL
@@ -656,6 +658,34 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="zombie batch" repetitions="10" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="5000"/>
+    <metric>dead-zombies</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spontaneous-infect">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-infected">
+      <value value="3"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="zombie-speed" first="0.1" step="0.15" last="0.55"/>
+    <enumeratedValueSet variable="speed">
+      <value value="0.6"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="zombie-death-rate" first="0.1" step="0.1" last="0.9"/>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="60"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default

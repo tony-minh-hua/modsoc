@@ -72,9 +72,9 @@ end
 
 to go
   ;;stop the simulation if everyone or no one is infected
-;  if (count turtles with [infected?]) = num-turtles or
-;     (count turtles with [infected?]) = 0
-;  [ stop ]
+  if (count turtles with [infected?]) = num-turtles or
+     (count turtles with [infected?]) = 0
+  [ stop ]
   infect-susceptibles ;; S -> I
   recover-infecteds ;; I -> S
   recolor
@@ -201,7 +201,7 @@ num-turtles
 num-turtles
 1
 1000
-1000.0
+500.0
 1
 1
 NIL
@@ -335,7 +335,7 @@ prop-safe
 prop-safe
 0
 1
-0.08
+1.0
 0.01
 1
 NIL
@@ -814,6 +814,39 @@ NetLogo 6.3.0
       <value value="2"/>
       <value value="3"/>
     </enumeratedValueSet>
+    <enumeratedValueSet variable="turning-angle">
+      <value value="360"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="remove-recovered?">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="contagion batch 1" repetitions="5" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>maximum-infection</metric>
+    <metric>maximum-infection-rate</metric>
+    <enumeratedValueSet variable="num-turtles">
+      <value value="50"/>
+      <value value="200"/>
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spontaneous-infect">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="transmissibility">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="recovery-rate">
+      <value value="0.01"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-infected">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="speed">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="prop-safe" first="0" step="0.1" last="1"/>
     <enumeratedValueSet variable="turning-angle">
       <value value="360"/>
     </enumeratedValueSet>
