@@ -1,4 +1,5 @@
-turtles-own [opinion]
+turtles-own [opinion
+original-opinion]
 
 ;;create one turle on each patch, give each a random opinion
 to setup
@@ -6,6 +7,7 @@ to setup
   ask patches[
     sprout 1[
       set opinion (random-float 2) - 1 ;;give each agent an opinion drawn from [-1, 1]
+      set original-opinion opinion
       set shape "circle"
     ]
   ]
@@ -157,7 +159,7 @@ PLOT
 270
 329
 580
-513
+554
 Agent opinions
 opinion
 number of agents
@@ -185,8 +187,8 @@ spatial-interactions?
 PLOT
 583
 14
-970
-512
+1020
+554
 Agent opinions over time
 time
 opinions
@@ -232,8 +234,8 @@ PENS
 PLOT
 44
 405
-244
-555
+246
+552
 initial vs current position
 initial
 current
@@ -245,8 +247,7 @@ true
 false
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "if (ticks mod 100 = 0) \n[ask turtles [plotxy ticks opinion]]"
-"pen-1" 1.0 0 -2674135 true "" "ask turtles [plotxy 1 opinion]"
+"default" 1.0 2 -16777216 true "" "if (ticks mod 100 = 0) \n[\n;;erase what was plotted before\nplot-pen-reset\nask turtles [plotxy original-opinion opinion]\n]"
 
 @#$#@#$#@
 ## Model Information and Materials
