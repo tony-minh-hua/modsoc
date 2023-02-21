@@ -1,3 +1,8 @@
+globals[
+ opinion-difference
+ consensus-reached
+]
+
 turtles-own [opinion]
 
 ;;create one turle on each patch, give each a random opinion
@@ -9,6 +14,8 @@ to setup
       set shape "circle"
     ]
   ]
+  set consensus-reached 0
+  set opinion-difference 0
   update-colors ;;color represents opinion
   reset-ticks
 end
@@ -24,7 +31,11 @@ to go
   tick
 
   ;; consensus reached
-  check-consensus
+  set opinion-difference (abs(max [opinion] of turtles - min [opinion] of turtles))
+  if (opinion-difference < consensus-threshold)
+  [set consensus-reached 1
+    stop
+  ]
 end
 
 to interact-random-turtle
@@ -55,11 +66,6 @@ to interact-neighbor-turtle
   ]
 end
 
-to check-consensus
-  if (abs((max [opinion] of turtles - min [opinion] of turtles)) < consensus-threshold)
-  [stop]
-end
-
 ;;shade each agent between black (opinion = -1) and white (opinion = 1)
 to update-colors
   ask turtles [
@@ -72,10 +78,10 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-269
-14
-579
-325
+185
+17
+495
+328
 -1
 -1
 14.4
@@ -99,10 +105,10 @@ ticks
 30.0
 
 BUTTON
-85
-34
-151
-67
+10
+19
+76
+52
 NIL
 setup
 NIL
@@ -116,10 +122,10 @@ NIL
 1
 
 BUTTON
-157
-34
-249
-67
+82
+19
+174
+52
 NIL
 go
 T
@@ -133,25 +139,25 @@ NIL
 0
 
 SLIDER
-86
-77
-250
-110
+11
+62
+175
+95
 learning-rate
 learning-rate
 0
 1
-0.5
+0.1
 .01
 1
 NIL
 HORIZONTAL
 
 PLOT
-270
-329
-580
-513
+186
+332
+496
+516
 Agent opinions
 opinion
 number of agents
@@ -166,10 +172,10 @@ PENS
 "default" 1.0 1 -16777216 true "" "histogram [opinion] of turtles"
 
 PLOT
-583
-14
-970
-512
+499
+17
+886
+515
 Agent opinions over time
 time
 opinions
@@ -184,30 +190,41 @@ PENS
 "default" 1.0 2 -14730904 true "" "if (ticks mod 100 = 0) [\nask turtles [\nplotxy ticks opinion\n]\n]"
 
 SLIDER
-86
-118
-251
-151
+11
+103
+176
+136
 consensus-threshold
 consensus-threshold
 0
 1
-1.0
+0.05
 0.01
 1
 NIL
 HORIZONTAL
 
 SWITCH
-88
-156
-240
-189
+13
+141
+165
+174
 spatial-interactions
 spatial-interactions
 1
 1
 -1000
+
+MONITOR
+19
+193
+76
+238
+NIL
+ticks
+17
+1
+11
 
 @#$#@#$#@
 ## Model Information and Materials
@@ -546,6 +563,33 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="100000"/>
+    <metric>ticks</metric>
+    <metric>opinion-difference</metric>
+    <metric>consensus-reached</metric>
+    <enumeratedValueSet variable="consensus-threshold">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spatial-interactions">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="learning-rate">
+      <value value="0.1"/>
+      <value value="0.2"/>
+      <value value="0.3"/>
+      <value value="0.4"/>
+      <value value="0.5"/>
+      <value value="0.6"/>
+      <value value="0.7"/>
+      <value value="0.8"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default

@@ -263,7 +263,7 @@ prob-random
 prob-random
 0
 1
-0.1
+0.0
 0.01
 1
 NIL
@@ -276,7 +276,7 @@ SWITCH
 189
 progressive-random
 progressive-random
-0
+1
 1
 -1000
 
@@ -660,6 +660,23 @@ NetLogo 6.3.0
       <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="repulsion?">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="3" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1250"/>
+    <metric>extremism</metric>
+    <metric>polarization</metric>
+    <enumeratedValueSet variable="progressive-random">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-opinions">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="prob-random" first="0" step="0.05" last="0.3"/>
+    <enumeratedValueSet variable="spatial-interactions?">
       <value value="true"/>
     </enumeratedValueSet>
   </experiment>

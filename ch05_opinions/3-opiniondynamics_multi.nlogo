@@ -1,5 +1,4 @@
 
-
 turtles-own [opinions] ;;agents have a vector of opinions
 
 ;;create one turtle on each patch, give each a random opinion
@@ -254,7 +253,7 @@ distribution-range
 distribution-range
 0
 1
-0.91
+1.0
 0.01
 1
 NIL
@@ -631,6 +630,21 @@ NetLogo 6.3.0
     <enumeratedValueSet variable="repulsion?">
       <value value="true"/>
     </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="3" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="1000"/>
+    <metric>polarization</metric>
+    <metric>extremism</metric>
+    <enumeratedValueSet variable="num-opinions">
+      <value value="2"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="spatial-interactions?">
+      <value value="false"/>
+      <value value="true"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="distribution-range" first="0.1" step="0.1" last="1"/>
   </experiment>
 </experiments>
 @#$#@#$#@
