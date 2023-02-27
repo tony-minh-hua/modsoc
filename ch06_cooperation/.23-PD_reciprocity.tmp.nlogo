@@ -94,6 +94,15 @@ to play-game
     let neighbors-D count (turtles-on neighbors4) with [strategy = 0]
     let neighbors-T count (turtles-on neighbors4) with [strategy = 2]
 
+
+    if (num-iterations-low > num-iterations-high)
+    [ set num-iterations-high num-iterations-low ]
+
+    let num-iterations ((num-iterations-low + num-iterations-high) / 2)
+
+    if probabilistic
+    [ set num-iterations random (num-iterations-high - num-iterations-low) + num-iterations-low ]
+
     ;if I'm a cooperator
     if (strategy = 1)
     [ set payoff num-iterations * ((neighbors-C + neighbors-T) * (payoff-benefit - payoff-cost) - neighbors-D * payoff-cost) ]
@@ -283,21 +292,6 @@ NIL
 
 SLIDER
 47
-338
-226
-371
-num-iterations
-num-iterations
-1
-20
-4.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-47
 301
 226
 334
@@ -342,10 +336,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-47
-378
-237
-411
+29
+366
+219
+399
 cooperator-mutation-weight
 cooperator-mutation-weight
 0
@@ -357,10 +351,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-46
-417
-238
-450
+28
+405
+220
+438
 defector-mutation-weight
 defector-mutation-weight
 0
@@ -372,10 +366,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-47
-455
-237
-488
+29
+443
+219
+476
 tft-mutation-weight
 tft-mutation-weight
 0
@@ -387,10 +381,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-46
-494
-218
-527
+28
+482
+200
+515
 mutation-prob
 mutation-prob
 0
@@ -420,6 +414,58 @@ PENS
 "default" 1.0 0 -2674135 true "" "plot count turtles with [strategy = 0]"
 "pen-1" 1.0 0 -13345367 true "" "plot count turtles with [strategy = 1]"
 "pen-2" 1.0 0 -10899396 true "" "plot count turtles with [strategy = 2]"
+
+SWITCH
+260
+369
+376
+402
+probabilistic
+probabilistic
+1
+1
+-1000
+
+SLIDER
+384
+409
+564
+442
+num-iterations-high
+num-iterations-high
+0
+20
+12.0
+1
+1
+NIL
+HORIZONTAL
+
+MONITOR
+382
+490
+557
+535
+num-iterations
+(num-iterations-low + num-iterations-high) / 2
+17
+1
+11
+
+SLIDER
+382
+446
+565
+479
+num-iterations-low
+num-iterations-low
+0
+20
+12.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## Model Information and Materials
