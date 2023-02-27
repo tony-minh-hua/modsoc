@@ -9,6 +9,11 @@ ggplot(data = data, aes(x = learning.rate, y = ticks)) +
   geom_point() + xlab("Learning Rate") + ylab("Ticks") + geom_line()
 
 
+data <- read.csv("C:/Users/tonym/OneDrive/Documents/GitHub/modsoc/ch05_opinions/HW5/2-opiniondynamics_BC experiment-table.csv", skip = 6 )
+
+ggplot(data = data, aes(x = confidence.threshold, y = num.cliques, shape = spatial.interactions.)) + 
+  geom_point() + xlab("Confidence Threshold") + ylab("Cliques") + geom_line()
+
 data <- read.csv("C:/Users/tonym/OneDrive/Documents/GitHub/modsoc/ch05_opinions/HW5/3-opiniondynamics_multi experiment-table.csv", skip = 6 )
 
 ggplot(data = data, aes(x = polarization, y = extremism, shape = spatial.interactions., color = factor(distribution.range))) + 

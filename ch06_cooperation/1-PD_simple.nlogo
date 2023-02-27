@@ -1,101 +1,177 @@
-turtles-own [opinion
-original-opinion]
+turtles-own [
+  strategy ;0=defector, 1=cooperator
+  payoff ;;payoff
+  pre-strategy ;; corresponds to strategy
+]
 
-;;create one turle on each patch, give each a random opinion
+;;----SETUP PROCEDURES---------------------
+
 to setup
   clear-all
-  ask patches[
-    sprout 1[
-      set opinion (random-float 2) - 1 ;;give each agent an opinion drawn from [-1, 1]
-      set original-opinion opinion
-      set shape "circle"
-    ]
-  ]
-  update-colors ;;color represents opinion
+  make-agents
+  recolor
   reset-ticks
 end
 
-
-to go
-  ;; a random agent chooses another agent for a potential interaction
-  ask one-of turtles [
-    let x1 opinion ;;my opinion
-    let other-turtle one-of other turtles ;;choose interaction partner at random
-
-    if spatial-interactions? ;;restrict interactions to spatial neighbors
-    [set other-turtle one-of other turtles-on neighbors4]
-    let x2 [opinion] of other-turtle ;;other guy's opinion
-
-    ;;do they have an interaction and become more similar?
-    if (abs (x1 - x2) < confidence-threshold) [
-      let x1-new (x1 + learning-rate * (x2 - x1))
-      let x2-new (x2 + learning-rate * (x1 - x2))
-      set opinion x1-new
-      ask other-turtle [ set opinion x2-new]
+;;create agents, one on each patch. Make some of them cooperators.
+to make-agents
+  ask patches [
+    sprout 1 [
+      ifelse random-float 1 < init-coop-freq
+      [ set strategy 1 ]
+      [ set strategy 0 ]
+      set shape "circle"
+      set payoff 0
     ]
   ]
-  update-colors
+end
+
+;;recolor agents based on strategy
+;;red = defector, blue = cooperator
+to recolor
+  ask turtles[
+    if strategy = 0
+    [ set color red]
+    if strategy = 1
+    [ set color blue]
+  ]
+end
+
+
+
+;;----DYNAMICS PROCEDURES---------------------
+
+to go
+  if (all? turtles [strategy = 0] or all? turtles [strategy = 1]) [stop] ;;stop if one strategy has "won"
+  play-game ;;agents play the game with neighbors and receive payoffs
+  evolve ;;agents copy the strategy of their most successful neighbor
+  recolor ;;recolor agents to match their strategy
   tick
 end
 
 
-;;shade each agent between black (opinion = -1) and white (opinion = 1)
-to update-colors
+;;each agent plays the PD game with each of its 4 closest neighbors and accumulates payoff
+to play-game
+
   ask turtles [
-    set color (opinion + 1) * 9.9 / 2
+    set payoff 0;;reset payoff for this time step
+
+    ;count neighbors with each strategy
+    let neighbors-C count (turtles-on neighbors4) with [strategy = 1]
+    let neighbors-D count (turtles-on neighbors4) with [strategy = 0]
+
+    ;if I'm a cooperator
+    if (strategy = 1)
+    [ set payoff (neighbors-C * (payoff-benefit - payoff-cost) - neighbors-D * payoff-cost) ]
+
+    ;if I'm a defector
+    if (strategy = 0)
+    [ set payoff (neighbors-C * payoff-benefit) ]
   ]
 end
 
-
-;;calculate number of cliques at end of run
-to-report num-cliques
-  let cliques 1
-  let d confidence-threshold ;;shorten name to make it easier to work with.
-  let min-value min [opinion] of (turtles with [opinion > (-1 + .5 * d)])
-
-  while [any? turtles with [opinion > (min-value + d) and opinion < (1 - (.5 * d))]] [
-    set min-value min [opinion] of (turtles with [opinion > (min-value + (.5 * d))])
-    set cliques (cliques + 1)
+;;each agent imitates their most successful neighbor
+to evolve
+  ifelse (synchronous = false) [
+    ask turtles[
+      let best-neighbor max-one-of (turtles-on neighbors4) [payoff] ;;who's my neighbor with the highest payoff
+      if ([payoff] of best-neighbor) > payoff ;;if their payoff is better than mine, imitate them
+      [set strategy [strategy] of best-neighbor]
     ]
-    report cliques
+  ]
+  [
+    ask turtles[
+      let best-neighbor max-one-of (turtles-on neighbors4) [payoff]
+      if ([payoff] of best-neighbor) > payoff ;;if their payoff is better than mine, imitate them
+        [set pre-strategy [strategy] of best-neighbor]
+    ]
+    ; Use pre-strategy flag to inform new strategy
+    ask turtles[
+      set strategy (pre-strategy)
+    ]
+  ]
 end
-
 
 ; Copyright 2023 Paul E. Smaldino.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-269
-14
-579
-325
+235
+18
+562
+346
 -1
 -1
-14.4
+10.3
 1
 10
 1
 1
 1
 0
-0
-0
 1
--10
-10
--10
-10
+1
+1
+-15
+15
+-15
+15
 0
 0
 1
 ticks
 30.0
 
+SLIDER
+46
+104
+225
+137
+init-coop-freq
+init-coop-freq
+0
+1
+0.5
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+46
+148
+225
+181
+payoff-benefit
+payoff-benefit
+0
+1
+1.0
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+46
+190
+226
+223
+payoff-cost
+payoff-cost
+0
+1
+0.1
+.01
+1
+NIL
+HORIZONTAL
+
 BUTTON
-85
-34
-151
-67
+47
+18
+136
+51
 NIL
 setup
 NIL
@@ -109,10 +185,10 @@ NIL
 1
 
 BUTTON
-157
-34
-220
-67
+144
+18
+218
+51
 NIL
 go
 T
@@ -125,142 +201,62 @@ NIL
 NIL
 0
 
-SLIDER
-62
-77
-250
-110
-learning-rate
-learning-rate
-0
-1
-0.5
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-62
-116
-250
-149
-confidence-threshold
-confidence-threshold
-0
-2
-0.9
-.01
-1
-NIL
-HORIZONTAL
-
 PLOT
-270
-329
-580
-554
-Agent opinions
-opinion
-number of agents
--1.02
-1.2
+568
+19
+883
+346
+Frequency of Cooperation
+Time
+Cooperator frequency
 0.0
 10.0
+0.0
+1.0
+true
 false
-false
-"set-plot-x-range -1.02 1.02\nset-plot-y-range 0 count turtles\nset-histogram-num-bars 40\n" ""
+"" ""
 PENS
-"default" 1.0 1 -16777216 true "" "histogram [opinion] of turtles"
+"default" 1.0 0 -13345367 true "" "plot (count turtles with [strategy = 1]) / (count turtles)"
+
+BUTTON
+91
+58
+172
+91
+go once
+go
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 SWITCH
-62
-154
-250
-187
-spatial-interactions?
-spatial-interactions?
+57
+256
+183
+289
+synchronous
+synchronous
 1
 1
 -1000
 
-PLOT
-583
-14
-1020
-554
-Agent opinions over time
-time
-opinions
-0.0
-10.0
--1.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 2 -14730904 true "" "if (ticks mod 100 = 0) [\nask turtles [\nplotxy ticks opinion\n]\n]"
-
-MONITOR
-44
-194
-124
-239
-NIL
-num-cliques
-17
-1
-11
-
-PLOT
-44
-249
-244
-399
-cliques over time
-time
-cliques
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot num-cliques"
-
-PLOT
-44
-405
-246
-552
-initial vs current position
-initial
-current
--1.0
-1.0
--1.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 2 -16777216 true "" "if (ticks mod 100 = 0) \n[\n;;erase what was plotted before\nplot-pen-reset\nask turtles [plotxy original-opinion opinion]\n]"
-
 @#$#@#$#@
 ## Model Information and Materials
 
-This model is original material created by Paul E. Smaldino. The model is based on work by Deffuant et al. (2000). 
-
-* Deffuant, G., Neau, D., Amblard, F., & Weisbuch, G. (2000). Mixing beliefs among interacting agents. Advances in Complex Systems, 3, 87-98.
+This model is original material created by Paul E. Smaldino. 
 
 ## References and Citation
 
 For this model:
 
-* Smaldino PE (2023). Opinion Dynamics: Bounded Confidence. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
+* Smaldino PE (2023). Prisoner's Dilemma Game: Simple. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
 For the book:
 
@@ -587,18 +583,36 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="3" runMetricsEveryStep="false">
+  <experiment name="experiment" repetitions="10" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="25000"/>
-    <metric>num-cliques</metric>
-    <enumeratedValueSet variable="spatial-interactions?">
+    <timeLimit steps="100"/>
+    <metric>(count turtles with [strategy = 1]) / (count turtles)</metric>
+    <enumeratedValueSet variable="payoff-benefit">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="init-coop-freq">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="payoff-cost" first="0.01" step="0.01" last="0.5"/>
+  </experiment>
+  <experiment name="experiment" repetitions="50" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="500"/>
+    <metric>(count turtles with [strategy = 1]) / (count turtles)</metric>
+    <enumeratedValueSet variable="payoff-benefit">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="synchronous">
       <value value="true"/>
       <value value="false"/>
     </enumeratedValueSet>
-    <steppedValueSet variable="confidence-threshold" first="0.05" step="0.05" last="1"/>
-    <enumeratedValueSet variable="learning-rate">
+    <enumeratedValueSet variable="init-coop-freq">
       <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="payoff-cost">
+      <value value="0.1"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
