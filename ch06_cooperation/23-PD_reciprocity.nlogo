@@ -315,7 +315,7 @@ defector-weight
 defector-weight
 0
 1
-0.2
+0.15
 0.01
 1
 NIL
@@ -330,7 +330,7 @@ tft-weight
 tft-weight
 0
 1
-0.35
+0.3
 0.01
 1
 NIL
@@ -360,7 +360,7 @@ defector-mutation-weight
 defector-mutation-weight
 0
 1
-0.1
+1.0
 0.01
 1
 NIL
@@ -375,7 +375,7 @@ tft-mutation-weight
 tft-mutation-weight
 0
 1
-0.0
+1.0
 0.01
 1
 NIL
@@ -390,7 +390,7 @@ mutation-prob
 mutation-prob
 0
 1
-0.05
+0.02
 0.01
 1
 NIL
@@ -462,7 +462,7 @@ num-iterations-low
 num-iterations-low
 0
 20
-12.0
+8.0
 1
 1
 NIL

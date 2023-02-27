@@ -94,12 +94,13 @@ to play-game
     let neighbors-D count (turtles-on neighbors4) with [strategy = 0]
     let neighbors-T count (turtles-on neighbors4) with [strategy = 2]
 
-
+    ; set upper bounds to equal lower bound if upper bound is smaller than lower-bound
     if (num-iterations-low > num-iterations-high)
     [ set num-iterations-high num-iterations-low ]
 
     let num-iterations ((num-iterations-low + num-iterations-high) / 2)
 
+    ; reassign value based on uniform distribution
     if probabilistic
     [ set num-iterations random (num-iterations-high - num-iterations-low) + num-iterations-low ]
 
@@ -422,7 +423,7 @@ SWITCH
 402
 probabilistic
 probabilistic
-1
+0
 1
 -1000
 
@@ -461,7 +462,7 @@ num-iterations-low
 num-iterations-low
 0
 20
-12.0
+8.0
 1
 1
 NIL
