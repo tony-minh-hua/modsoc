@@ -1,55 +1,90 @@
+;; An asymmetric coordination model in one population. Everyone starts with one of two norms.
+;; Agents calculate their expected payoff and then preferentially (probabilistically) copy those with higher payoffs.
+;; Here, Norm 1 is better for the group but costlier when rare compared to Norm 2.
+
+
+
 turtles-own [
-  norm1? ;;do I use norm 1? If false, use norm 2
-  groupID ;;to which group do I belong?
-  payoff ;;what is my payoff from interactions.
+  norm1? ;;do I have norm 1? If false, norm 2.
+  payoff
 ]
 
-;;;;;;;; INITIALIZATION ;;;;;;;;;;;;;;;
-
-
+;; Create agents, one on each patch. Assign them one of two norms.
 to setup
   clear-all
-  color-patches ;;divide the space into group 1 and group 2 territory
-  setup-turtles ;;create turtles
+  ask patches [
+    sprout 1 [
+      set shape "circle"
+      ifelse random-float 1 < init-norm1
+      [set norm1? true]
+      [set norm1? false]
+    ]
+  ]
+  ;set norm1-payoff 0
+  ;set norm2-payoff 0
   recolor
   reset-ticks
 end
 
-;;make slight color difference between two sides of the grid to delineate each group's territory
-to color-patches
-  ask patches [
-   if pxcor < max-pxcor / 2
-   [ set pcolor 0 ]
-   if pxcor > max-pxcor / 2
-   [ set pcolor 1 ]
-   if pxcor = max-pxcor / 2 ;;make the center line grey to creat a boundary
-   [ set pcolor gray ]
+
+to go
+  ;;stop simulation if all agents are using the same norm
+  if (count turtles with [norm1?]) = (count patches) or
+    (count turtles with [norm1?]) = 0
+    [ stop ]
+
+  calculate-payoffs ;;interactions and payoffs
+  evolve ;;success-biased imitation
+  recolor
+  tick
+end
+
+
+;;calculate expected payoff for all possible interactions
+to calculate-payoffs
+
+  ifelse (well-mixed = true) [
+     let p1 (count turtles with [norm1?]) / (count turtles)
+     let norm1-payoff ((p1 * (1 + norm1-prosocial-benefit + norm1-coord-benefit)) + ((1 - p1) * (1 - norm1-rarity-cost)))
+     let norm2-payoff (p1 * (1 + norm1-prosocial-benefit) + (1 - p1) * 1)
+
+     ask turtles with [norm1?][ ;;calculate payoffs for the norm 1 agents
+        set payoff norm1-payoff
+     ]
+     ask turtles with [not norm1?][ ;;calculate payoffs for the norm 1 agents
+        set payoff norm2-payoff
+     ]
+  ][
+  ask turtles[
+     let p1 (count (turtles-on neighbors4) with [norm1?]) / (count (turtles-on neighbors4))
+
+     ifelse (norm1?)
+      [let norm1-payoff ((p1 * (1 + norm1-prosocial-benefit + norm1-coord-benefit)) + ((1 - p1) * (1 - norm1-rarity-cost)))
+      set payoff norm1-payoff
+      ]
+      [let norm2-payoff (p1 * (1 + norm1-prosocial-benefit) + (1 - p1) * 1)
+      set payoff norm2-payoff
+      ]
+  ]
   ]
 end
 
-;; Create agents, one on each patch. Assign them one of two norms.
-;; Each group has a different initial frequency of each norm
-to setup-turtles
-  ask patches with [pcolor = 0 or pcolor = 1][
-    sprout 1 [
-    set payoff 0
-    set norm1? false
+;; observe another agent at random, and probabilistically copy their strategy to the extent their payoff
+;; is higher than my own
+to evolve
+
+  ask turtles[
+    let model one-of other turtles
+    if (well-mixed = false) [
+      set model one-of other turtles-on neighbors4
     ]
-  ]
-  ask turtles with [pcolor = 0] [
-   set groupID 0
-   set shape "circle"
-   if(random-float 1 < init-norm1-groupA)
-     [set norm1? true]
-  ]
-  ask turtles with [pcolor = 1] [
-   set groupID 1
-   set shape "square"
-   if(random-float 1 < init-norm1-groupB)
-     [set norm1? true]
+
+    let other-payoff [payoff] of model
+    let prob-copy (1 / (1 + exp (-1 * (other-payoff - payoff))))
+    if random-float 1 < prob-copy
+    [set norm1? [norm1?] of model]
   ]
 end
-
 
 ;; recolor agents based on norm.
 ;; yellow = norm 1, blue = norm 2
@@ -62,109 +97,30 @@ to recolor
 end
 
 
-;;;;;;;; DYNAMICS ;;;;;;;;;;;;;;;
-
-to go
-  ;;stop simulation if all agents are using the same norm
-;;  if (count turtles with [norm1?]) = (count turtles)  or
-;;    (count turtles with [norm1? and groupID = 1]) = 0
-;;    [ stop ]
-
-  calculate-payoffs ;;interactions and payoffs
-  evolve ;;success-biased imitation
-  recolor
-  tick
-end
-
-
-;;calculate expected payoff for all possible WITHIN-GROUP interactions
-to calculate-payoffs
-  let num-agents (count turtles) / 2 ;;number of agents in each group
-  (foreach [0 1][ ;;loop over each group k
-    [k] ->
-    let num-in (count turtles with [groupID = k and norm1?])
-    let num-out (count turtles with [groupID != k and norm1?])
-    let p-in (num-in / num-agents)
-    let p-out (num-out / num-agents)
-
-    let pay-high (norm1-share * surplus-benefit)
-    let pay-low ((1 - norm1-share) * surplus-benefit)
-
-    let norm1-payoff prob-outgroup-interaction * ((1 - p-out) * (1 + pay-high) + (p-out * 1)) +
-        (1 - prob-outgroup-interaction) * ((1 - p-in) * (1 + pay-high) + (p-in * 1))
-
-    let norm2-payoff prob-outgroup-interaction * (((1 - p-out) * 1)  + (p-out * (1 + pay-low))) +
-        (1 - prob-outgroup-interaction) * (((1 - p-in) * 1) + (p-in * (1 + pay-low)))
-
-
-    ask turtles with [groupID = k and norm1?][ ;;calculate payoffs for the norm 1 agents
-      set payoff norm1-payoff
-    ]
-    ask turtles with [groupID = k and not norm1?][ ;;calculate payoffs for the norm 2 agents
-      set payoff norm2-payoff
-    ]
-  ])
-end
-
-
-;; observe another agent at random, and probabilistically copy their strategy to the extent their payoff
-;; is higher than my own.
-;; the probability that the observed agent is from the other group is prob-outgroup-observation
-to evolve
-  ask turtles[
-    let myID groupID
-    ;;choose which group to observe from
-    let otherID groupID
-    if random-float 1 < prob-outgroup-observation
-    [set otherID ((myID + 1) mod 2)] ;;modular arithmetic always selects outgroup
-    let model one-of other turtles with [groupID = otherID]
-    ;;compare payoffs and potentially copy
-    let other-payoff [payoff] of model
-    let prob-copy (1 / (1 + exp (-1 * (other-payoff - payoff))))
-    if random-float 1 < prob-copy
-    [set norm1? [norm1?] of model]
-  ]
-end
-
-
-;;report the proportion of agents using norm 1. Useful for plotting and batch runs.
-to-report frequency-norm1
-  report (count turtles with [norm1?]) / (count turtles)
-end
-
-to-report freq-norm1-groupA
-  report (count turtles with [norm1? and groupID = 0]) / (count turtles with [groupID = 0])
-end
-
-to-report freq-norm1-groupB
-  report (count turtles with [norm1? and groupID = 1]) / (count turtles with [groupID = 1])
-end
-
-
 ; Copyright 2023 Paul E. Smaldino.
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-294
-10
-826
-275
+230
+16
+494
+281
 -1
 -1
-12.8
+8.26
 1
 10
 1
 1
 1
 0
-0
-0
 1
-0
-40
-0
-19
+1
+1
+-15
+15
+-15
+15
 0
 0
 1
@@ -172,12 +128,12 @@ ticks
 30.0
 
 BUTTON
-60
-38
+41
+24
 126
-71
+57
 NIL
-setup\n
+setup
 NIL
 1
 T
@@ -189,10 +145,10 @@ NIL
 1
 
 BUTTON
-134
-38
-197
-71
+131
+24
+214
+57
 NIL
 go
 T
@@ -203,129 +159,131 @@ NIL
 NIL
 NIL
 NIL
-0
+1
 
 SLIDER
-57
-191
-287
-224
-prob-outgroup-observation
-prob-outgroup-observation
+30
+65
+226
+98
+init-norm1
+init-norm1
 0
-.5
-0.37
-.001
+1
+0.05
+.01
 1
 NIL
 HORIZONTAL
 
 PLOT
-294
-283
-826
-515
-Frequency of Norm 1
+504
+17
+769
+223
+Norms
 time
-freq(norm1)
+Proportion w/ norm 1
 0.0
 10.0
 0.0
 1.0
 true
-true
+false
 "" ""
 PENS
-"group A" 1.0 0 -955883 true "" "plot freq-norm1-groupA"
-"group B" 1.0 0 -14454117 true "" "plot freq-norm1-groupB"
+"Freq Norm 1" 1.0 0 -16777216 true "" "plot (count turtles with [norm1?]) / (count turtles)"
 
 SLIDER
-57
-228
-286
-261
-init-norm1-groupA
-init-norm1-groupA
+30
+102
+226
+135
+norm1-prosocial-benefit
+norm1-prosocial-benefit
 0
-1
-0.6
-.01
+10
+1.0
+.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-57
-266
-286
-299
-init-norm1-groupB
-init-norm1-groupB
+30
+138
+226
+171
+norm1-coord-benefit
+norm1-coord-benefit
 0
-1
-0.4
-.01
+10
+1.0
+.1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-57
-80
-287
-113
-surplus-benefit
-surplus-benefit
+30
+175
+226
+208
+norm1-rarity-cost
+norm1-rarity-cost
 0
-20
-7.0
-.5
+10
+0.5
+.1
 1
 NIL
 HORIZONTAL
 
-SLIDER
-57
-117
-287
-150
-norm1-share
-norm1-share
-0
+MONITOR
+505
+235
+594
+280
+freq(norm1)
+(count turtles with [norm1?]) / (count turtles)
+4
 1
-0.7
-.01
-1
-NIL
-HORIZONTAL
+11
 
-SLIDER
-57
-155
-287
-188
-prob-outgroup-interaction
-prob-outgroup-interaction
-0
+MONITOR
+599
+235
+685
+280
+p*
+norm1-rarity-cost / (norm1-rarity-cost + norm1-coord-benefit)
+6
 1
-0.9
-.001
+11
+
+SWITCH
+55
+219
+168
+252
+well-mixed
+well-mixed
 1
-NIL
-HORIZONTAL
+1
+-1000
 
 @#$#@#$#@
 ## Model Information and Materials
 
-This model is original material created by Paul E. Smaldino. The model is based on work by Henrich and Boyd (2008). 
+This model is original material created by Paul E. Smaldino. The payoff matrix is based on work by Boyd and Richerson (2002). 
 
-* Henrich J, Boyd R (2008) Division of labor, economic specialization, and the evolution of social stratification. Current Anthropology 49: 715-724.
+* Boyd R. Richerson PJ (2002) Group beneficial norms can spread rapidly in a structured population. Journal of Theoretical Biology 215: 287-296.
 
 ## References and Citation
 
 For this model:
 
-* Smaldino PE (2023). Division of Labor. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
+* Smaldino PE (2023). Coordination: Asymmetric. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
 For the book:
 
@@ -652,123 +610,40 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment1" repetitions="30" runMetricsEveryStep="false">
+  <experiment name="experiment" repetitions="5" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="1000"/>
-    <metric>frequency-norm1</metric>
-    <metric>norm1-spread</metric>
-    <enumeratedValueSet variable="prob-outgroup-observation">
-      <value value="0.01"/>
-      <value value="0.1"/>
+    <metric>(count turtles with [norm1?]) / (count turtles)</metric>
+    <enumeratedValueSet variable="well-mixed">
+      <value value="true"/>
     </enumeratedValueSet>
-    <steppedValueSet variable="norm1-group-benefit" first="0" step="2" last="4"/>
-    <steppedValueSet variable="norm1-self-benefit" first="0.2" step="0.2" last="2.6"/>
-    <enumeratedValueSet variable="norm2-deviance-cost">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="alpha">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-turtles-per-group">
-      <value value="60"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="num-groups">
-      <value value="5"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment2" repetitions="50" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="500"/>
-    <metric>freq-norm1-group2</metric>
-    <enumeratedValueSet variable="prob-outgroup-observation">
-      <value value="0.014"/>
-      <value value="0.016"/>
-      <value value="0.018"/>
-      <value value="0.02"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="norm1-self-benefit">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="norm2-deviance-cost">
+    <steppedValueSet variable="init-norm1" first="0.25" step="0.005" last="0.4"/>
+    <enumeratedValueSet variable="norm1-rarity-cost">
       <value value="0.5"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-group1">
-      <value value="0.8"/>
+    <enumeratedValueSet variable="norm1-coord-benefit">
+      <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-group2">
-      <value value="0.2"/>
+    <enumeratedValueSet variable="norm1-prosocial-benefit">
+      <value value="1"/>
     </enumeratedValueSet>
-    <steppedValueSet variable="norm1-group-benefit" first="0" step="0.1" last="3"/>
   </experiment>
-  <experiment name="experimentfair" repetitions="50" runMetricsEveryStep="false">
+  <experiment name="experiment 2" repetitions="5" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>freq-norm1-group1</metric>
-    <metric>freq-norm1-group2</metric>
-    <enumeratedValueSet variable="prob-outgroup-observation">
-      <value value="0.03"/>
+    <metric>(count turtles with [norm1?]) / (count turtles)</metric>
+    <enumeratedValueSet variable="well-mixed">
+      <value value="false"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="norm1-share">
+    <steppedValueSet variable="init-norm1" first="0.05" step="0.005" last="0.95"/>
+    <enumeratedValueSet variable="norm1-rarity-cost">
       <value value="0.5"/>
     </enumeratedValueSet>
-    <steppedValueSet variable="prob-outgroup-interaction" first="0.4" step="0.02" last="0.9"/>
-    <enumeratedValueSet variable="init-norm1-group1">
-      <value value="0.6"/>
+    <enumeratedValueSet variable="norm1-coord-benefit">
+      <value value="1"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-group2">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="surplus-benefit">
-      <value value="3"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experimentunfair" repetitions="50" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>freq-norm1-group1</metric>
-    <metric>freq-norm1-group2</metric>
-    <enumeratedValueSet variable="prob-outgroup-observation">
-      <value value="0.03"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="norm1-share" first="0.5" step="0.025" last="1"/>
-    <enumeratedValueSet variable="prob-outgroup-interaction">
-      <value value="0.8"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-group1">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-group2">
-      <value value="0.4"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="surplus-benefit">
-      <value value="3"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment a" repetitions="10" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="200"/>
-    <metric>freq-norm1-groupA</metric>
-    <metric>freq-norm1-groupB</metric>
-    <steppedValueSet variable="prob-outgroup-observation" first="0" step="0.02" last="0.4"/>
-    <enumeratedValueSet variable="norm1-share">
-      <value value="0.7"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="prob-outgroup-interaction">
-      <value value="0.9"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-groupA">
-      <value value="0.6"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="surplus-benefit">
-      <value value="7"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="init-norm1-groupB">
-      <value value="0.4"/>
+    <enumeratedValueSet variable="norm1-prosocial-benefit">
+      <value value="1"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
