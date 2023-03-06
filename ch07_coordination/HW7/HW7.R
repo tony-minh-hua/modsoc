@@ -31,3 +31,4 @@ data <- read.csv("C:/Users/tonym/OneDrive/Documents/GitHub/modsoc/ch07_coordinat
 ggplot(data = data, aes(x = prob.outgroup.observation, y = freq.norm1.groupA)) + 
   geom_point(alpha = 0.1, aes(color = "Group A")) +
   geom_point(alpha = 0.1, aes(y = freq.norm1.groupB, color = "Group B")) + xlab("Probability of outgroup observation, m") + ylab("Norm1 Frequency")
+
