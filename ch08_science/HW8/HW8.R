@@ -66,3 +66,6 @@ colnames(df_temp)[1] = "effort"
 df_temp$prob.new.study <- (1 - n*log10(effort))
 
 df <- rbind(df, df_temp)
+
+ggplot(data = df, aes(x = effort, y = prob.new.study, color = as.factor(influence))) + 
+  geom_point() + xlab("Effort") + ylab("Probability of a New Study")
