@@ -1,66 +1,139 @@
-globals [
-  prob-true
-  canonized-true
+globals[
+  ;effort-influence ;;0.2
+  reproduction-samplesize ;; 10
 ]
+
+turtles-own[
+  power
+  effort
+  false-pos-rate
+  pub-payoff
+  age
+]
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; SETUP PROCEDURES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 to setup
   clear-all
-  set prob-true initial-prior
-  ifelse true-hypothesis? ;;Color patches with initial epistemic state
-  [ask patches [set pcolor green]]
-  [ask patches [set pcolor red]]
+  make-labs
+  ;set effort-influence 0.2
+  set reproduction-samplesize 10
   reset-ticks
 end
 
 
-to go
-  ;;Check if fact is ready for canonization
-  if prob-true >= canonization-threshold [ ;;canonized TRUE!
-    set canonized-true 1
-    stop
+to make-labs
+  create-turtles num-labs [
+    set power power-init
+    set effort effort-init
+    set false-pos-rate (power / (1 + ((1 - power) * effort)))
+    set pub-payoff 0
+    set age 0
   ]
-  if prob-true <= (1 - canonization-threshold) [ ;;canonized FALSE!
-    set canonized-true 0
-    stop
-  ]
+end
 
-  ;;otherwise, gather evidence and update the hypothesis
-  update-hypothesis
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; DYNAMICS PROCEDURES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+to go
+  science
+  evolution
+  ask turtles [set age age + 1]
   tick
 end
 
 
-to update-hypothesis
-  ;;hypothesis is actually true
-  ifelse true-hypothesis? [
-    ;;true positive -- ALWAYS PUBLISH
-    ifelse random-float 1 < power [
-      ask patches [set pcolor green]
-      set prob-true (power * prob-true) / ((power * prob-true) + (false-positive-rate * (1 - prob-true)))
-    ]
-    ;;false negative -- PUB BIAS
-    [
-      ask patches [set pcolor red]
-      if (random-float 1 < (1 - pub-bias))[
-        set prob-true ((1 - power) * prob-true) / (((1 - power) * prob-true) + ((1 - false-positive-rate) * (1 - prob-true)))
+
+to science
+  ask turtles[
+    if random-float 1 < new-hypothesis [ ;;tackle a new study?
+      let actual-truth? false
+      if base-rate < random-float 1
+        [ set actual-truth? true ]
+      ifelse actual-truth?
+      ;;if true, pos result with probability power
+      [ ;;publish pos result or maybe publish negative result
+        ifelse (random-float 1 < power) ;;true positive
+        [ set pub-payoff pub-payoff + 1 ]
+        [
+          if (random-float 1 < prob-publish-neg-result) ;;false negative
+        [ set pub-payoff (pub-payoff + payoff-neg-result) ]
       ]
     ]
-  ]
-  ;;hypothesis is actually false
-  [
-    ;;false positive -- ALWAYS PUBLISH
-    ifelse random-float 1 < false-positive-rate [
-      ask patches [set pcolor green]
-      set prob-true (power * prob-true) / ((power * prob-true) + (false-positive-rate * (1 - prob-true)))
-    ]
-    ;;false negative -- PUB BIAS
-    [
-      ask patches [set pcolor red]
-      if (random-float 1 < (1 - pub-bias))[
-        set prob-true ((1 - power) * prob-true) / (((1 - power) * prob-true) + ((1 - false-positive-rate) * (1 - prob-true)))
-      ]
+    ;;if false, pos result with probability false-pos-rate
+    [ ;;publish pos result or maybe publish negative result
+      ifelse (random-float 1 < false-pos-rate) ;;false positive
+      [ set pub-payoff pub-payoff + 1 ]
+      [
+        if (random-float 1 < prob-publish-neg-result) ;;false negative
+      [ set pub-payoff (pub-payoff + payoff-neg-result) ]
     ]
   ]
+]
+
+
+]
+end
+
+;;agent-level procedure
+;;returns the probability that a lab does a new study
+to-report new-hypothesis
+  report 1 - (effort-influence * (log effort 10))
+end
+
+
+
+to evolution
+  ;;death
+  let death-labs n-of reproduction-samplesize turtles
+  let oldest-lab max-one-of death-labs [age] ;;the oldest in the set
+  ask oldest-lab [die] ;;kill off this lab.
+  ;;birth
+  let birth-labs n-of reproduction-samplesize turtles
+  let fanciest-lab max-one-of birth-labs [pub-payoff] ;;the oldest in the set
+  ask fanciest-lab [
+    hatch 1 [ ;;create a copy that inherits its attributes
+      set pub-payoff 0
+      set age 0
+      mutate
+      set false-pos-rate (power / (1 + ((1 - power) * effort)))
+    ]
+  ]
+end
+
+;;agent-level procedure
+;;mutate mutable properties
+to mutate
+  ;;mutate power
+  if random-float 1 < mutation-rate-power [
+    set power power + (random-normal 0 mutation-SD-power)
+    if power > 1 [set power 1]
+    if power < 0 [set power 0]
+  ]
+  ;;mutate effort
+  if random-float 1 < mutation-rate-effort [
+    set effort effort + (random-normal 0 mutation-SD-effort)
+    if effort > 100 [set effort 100]
+    if effort < 1 [set effort 1]
+  ]
+end
+
+
+;;report the proportion of total publications that are wrong
+to-report false-discovery-rate
+  let pow (mean [power] of turtles)
+  let fpr (mean [false-pos-rate] of turtles)
+
+  let total-pubs (base-rate * (pow + (1 - pow) * prob-publish-neg-result) +
+                 (1 - base-rate) * (fpr + (1 - fpr) *  prob-publish-neg-result))
+  let false-pubs (base-rate * (1 - pow) * prob-publish-neg-result) +
+                 ((1 - base-rate) * fpr)
+  report false-pubs / total-pubs
 end
 
 
@@ -68,13 +141,13 @@ end
 ; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
-205
-11
-515
-63
+298
+260
+577
+274
 -1
 -1
-14.4
+2.6832
 1
 10
 1
@@ -84,9 +157,9 @@ GRAPHICS-WINDOW
 1
 1
 1
--10
-10
--1
+0
+100
+0
 1
 1
 1
@@ -94,11 +167,199 @@ GRAPHICS-WINDOW
 ticks
 30.0
 
+SLIDER
+20
+70
+192
+103
+num-labs
+num-labs
+0
+100
+100.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+107
+192
+140
+base-rate
+base-rate
+0
+1
+0.1
+.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+143
+192
+176
+effort-init
+effort-init
+0
+100
+75.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+179
+192
+212
+power-init
+power-init
+0
+1
+0.8
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+261
+203
+294
+prob-publish-neg-result
+prob-publish-neg-result
+0
+1
+0.0
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+340
+213
+373
+mutation-rate-effort
+mutation-rate-effort
+0
+1
+0.1
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+19
+415
+214
+448
+mutation-SD-effort
+mutation-SD-effort
+0
+10
+1.0
+.1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+19
+453
+215
+486
+mutation-SD-power
+mutation-SD-power
+0
+.1
+0.01
+.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+20
+378
+213
+411
+mutation-rate-power
+mutation-rate-power
+0
+.1
+0.0
+.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+19
+300
+205
+333
+payoff-neg-result
+payoff-neg-result
+0
+2
+0.0
+.01
+1
+NIL
+HORIZONTAL
+
+PLOT
+281
+27
+594
+256
+Power and false positives
+time
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+true
+"" ""
+PENS
+"power" 1.0 0 -955883 true "" "plot mean [power] of turtles"
+"false pos" 1.0 0 -13345367 true "" "plot mean [false-pos-rate] of turtles"
+"false disc" 1.0 0 -7500403 true "" "plot false-discovery-rate"
+
+PLOT
+281
+279
+593
+499
+Effort
+time
+effort
+0.0
+10.0
+0.0
+100.0
+true
+false
+"" ""
+PENS
+"effort" 1.0 0 -10899396 true "" "plot mean [effort] of turtles"
+
 BUTTON
 20
-21
-94
-54
+33
+111
+66
 NIL
 setup
 NIL
@@ -112,13 +373,13 @@ NIL
 1
 
 BUTTON
-99
-21
-180
-54
-go once
-go
+116
+33
+192
+66
 NIL
+go
+T
 1
 T
 OBSERVER
@@ -126,151 +387,135 @@ NIL
 NIL
 NIL
 NIL
-0
-
-SLIDER
-16
-94
-189
-127
-initial-prior
-initial-prior
-0
 1
-0.5
-.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-16
-137
-188
-170
-false-positive-rate
-false-positive-rate
-0
-1
-0.05
-.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-16
-181
-189
-214
-power
-power
-0
-1
-0.8
-.001
-1
-NIL
-HORIZONTAL
-
-SWITCH
-17
-225
-189
-258
-true-hypothesis?
-true-hypothesis?
-1
-1
--1000
-
-PLOT
-205
-69
-516
-261
-Probability of True Hypothesis
-time
-Pr(true)
-0.0
-10.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot prob-true"
 
 TEXTBOX
-325
-26
-656
-131
-RESULT
-18
-9.0
+203
+82
+353
+100
+N
+11
+0.0
 1
 
-SLIDER
-16
-266
-188
-299
-pub-bias
-pub-bias
-0
+TEXTBOX
+204
+119
+354
+137
+b
+11
+0.0
 1
-0.2
-.001
-1
-NIL
-HORIZONTAL
 
-SLIDER
-16
-310
+TEXTBOX
+202
+153
+352
+171
+e_0
+11
+0.0
+1
+
+TEXTBOX
+201
+186
+351
+204
+W_0
+11
+0.0
+1
+
+TEXTBOX
+214
+244
+364
+262
+p
+11
+0.0
+1
+
+TEXTBOX
 216
-343
-canonization-threshold
-canonization-threshold
+282
+366
+300
+v
+11
+0.0
+1
+
+TEXTBOX
+221
+353
+371
+371
+mu_e
+11
+0.0
+1
+
+TEXTBOX
+220
+390
+370
+408
+mu_W
+11
+0.0
+1
+
+TEXTBOX
+220
+425
+370
+443
+sigma_e
+11
+0.0
+1
+
+TEXTBOX
+221
+462
+371
+480
+sigma_W
+11
+0.0
+1
+
+SLIDER
+20
+222
+192
+255
+effort-influence
+effort-influence
 0
 1
-0.99
-.001
+0.0
+0.01
 1
 NIL
 HORIZONTAL
-
-BUTTON
-22
-57
-176
-90
-NIL
-go
-T
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-0
 
 @#$#@#$#@
 ## Model Information and Materials
 
-This model is original material created by Paul E. Smaldino. The model is based on work by Nissen et al. (2016). 
+This model is original material created by Paul E. Smaldino. The model is based on work by Smaldino and McElreath (2016). 
 
-* Nissen SB, Magidson T, Gross K, Bergstrom CT. (2016). Publication bias and the canonization of false facts. eLife 5, e21451.
+* Smaldino PE, McElreath R (2016) The natural selection of bad science. Royal Society Open Science 3: 160384.
 
 ## References and Citation
 
 For this model:
 
-* Smaldino PE (2023). Science with Publication Bias. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
+* Smaldino PE (2023). The Natural Selection of Bad Science. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
 For the book:
 
@@ -596,56 +841,6 @@ NetLogo 6.3.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
-<experiments>
-  <experiment name="experiment" repetitions="1000" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="1000"/>
-    <metric>canonized-true</metric>
-    <steppedValueSet variable="false-positive-rate" first="0.05" step="0.05" last="0.25"/>
-    <enumeratedValueSet variable="power">
-      <value value="0.6"/>
-      <value value="0.8"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="canonization-threshold">
-      <value value="0.9"/>
-      <value value="0.999"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="true-hypothesis?">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="initial-prior">
-      <value value="0.5"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="pub-bias" first="0" step="0.01" last="1"/>
-  </experiment>
-  <experiment name="experiment 1" repetitions="20" runMetricsEveryStep="false">
-    <setup>setup</setup>
-    <go>go</go>
-    <timeLimit steps="100"/>
-    <metric>prob-true</metric>
-    <enumeratedValueSet variable="false-positive-rate">
-      <value value="0.05"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="power">
-      <value value="0.8"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="canonization-threshold">
-      <value value="0.99"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="true-hypothesis?">
-      <value value="true"/>
-      <value value="false"/>
-    </enumeratedValueSet>
-    <steppedValueSet variable="initial-prior" first="0.05" step="0.025" last="0.95"/>
-    <enumeratedValueSet variable="pub-bias">
-      <value value="0.025"/>
-      <value value="0.05"/>
-      <value value="0.2"/>
-      <value value="0.4"/>
-    </enumeratedValueSet>
-  </experiment>
-</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
