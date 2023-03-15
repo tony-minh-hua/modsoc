@@ -7,11 +7,19 @@ library(data.table)
 
 data <- read.csv("C:/Users/tonym/OneDrive/Documents/GitHub/modsoc/ch08_science/HW8/science_pub-bias experiment 1-table.csv", skip = 6 )
 
-ggplot(data = data[data$true.hypothesis. == "false",], aes(x = initial.prior, y = prob.true, color = as.factor(pub.bias), shape = true.hypothesis.)) + 
-  geom_point(alpha = 0.5) + xlab("Initial Prior") + ylab("Canonized as True or False")
+df <- data[data$true.hypothesis. == "false",] %>%
+  group_by(initial.prior, pub.bias) %>%
+  summarise_at(vars(prob.true), list(avg.prob.true = mean))
 
-ggplot(data = data[data$true.hypothesis. == "true",], aes(x = initial.prior, y = prob.true, color = as.factor(pub.bias), shape = true.hypothesis.)) + 
-  geom_point(alpha = 0.5) + xlab("Initial Prior") + ylab("Canonized as True or False")
+ggplot(data = df, aes(x = initial.prior, y = avg.prob.true, color = as.factor(pub.bias))) + 
+  geom_point(alpha = 0.5) + xlab("Initial Prior") + ylab("Probability False Fact Canonized as True")
+
+df2 <- data[data$true.hypothesis. == "true",] %>%
+  group_by(initial.prior, pub.bias) %>%
+  summarise_at(vars(prob.true), list(avg.prob.true = mean))
+
+ggplot(data = df2, aes(x = initial.prior, y = avg.prob.true, color = as.factor(pub.bias))) + 
+  geom_point(alpha = 0.5) + xlab("Initial Prior") + ylab("Probability True Fact Canonized as True")
 
 count(subset(data , true.hypothesis. == "true" & pub.bias == 0.025 & prob.true < 0.01))
 

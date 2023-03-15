@@ -137,7 +137,7 @@ initial-prior
 initial-prior
 0
 1
-0.5
+0.95
 .001
 1
 NIL
@@ -619,7 +619,7 @@ NetLogo 6.3.0
     </enumeratedValueSet>
     <steppedValueSet variable="pub-bias" first="0" step="0.01" last="1"/>
   </experiment>
-  <experiment name="experiment 1" repetitions="20" runMetricsEveryStep="false">
+  <experiment name="experiment 1" repetitions="2000" runMetricsEveryStep="false">
     <setup>setup</setup>
     <go>go</go>
     <timeLimit steps="100"/>
