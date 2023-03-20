@@ -1,166 +1,189 @@
-globals[
-  ;effort-influence ;;0.2
-  reproduction-samplesize ;; 10
+;;Simple and complex contagion on small-world networks.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Model Parameters ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+globals
+[
+  num-infected ;; how many agents are infected?
+  infected-size ;;the size of the infected agents
 ]
 
-turtles-own[
-  power
-  effort
-  false-pos-rate
-  pub-payoff
-  age
+turtles-own
+[
+  infected? ;; true if agent has been infected
 ]
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; SETUP PROCEDURES
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Setup Procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
 
 to setup
   clear-all
-  make-labs
-  ;set effort-influence 0.2
-  set reproduction-samplesize 10
+  set infected-size 5
+  set-default-shape turtles "outlined circle"
+  make-turtles ;;create agents
+  wire-lattice ;;arrange them in a ring lattice
+  rewire-network ;;apply the small-world algorithm
+  infect-two ;;infect two agents.
   reset-ticks
 end
 
 
-to make-labs
-  create-turtles num-labs [
-    set power power-init
-    set effort effort-init
-    set false-pos-rate (power / (1 + ((1 - power) * effort)))
-    set pub-payoff 0
-    set age 0
+to make-turtles
+  create-turtles num-nodes [ reset-node ]
+  ;; arrange turtles in an ordered, staggered circle
+  layout-circle (sort turtles) max-pxcor - 8
+  ;; space out turtles to see clustering
+  ask turtles
+  [
+    facexy 0 0
+    if who mod 2 = 0 [fd 10]
   ]
 end
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; DYNAMICS PROCEDURES
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+to reset-node
+    set color gray + 1.5
+    set size 4
+    set infected? false
+end
+
+
+;; creates the links for the ring lattice
+to wire-lattice
+  let degree 4 ;;assert degree 4. This can be modified for arbitrary degree
+  ;; iterate over the nodes
+  let n 0
+  while [n < count turtles]
+  [
+    ;; iterate over pairs of edges
+    let k 1
+    while [k <= degree / 2]
+    [
+      make-edge turtle n turtle ((n + k) mod count turtles)
+      set k k + 1
+    ]
+    set n n + 1
+  ]
+end
+
+;; connects the two nodes
+to make-edge [node1 node2]
+  ask node1 [ create-link-with node2 [ set color gray + 1.5] ]
+end
+
+
+;; Rewire the network connections
+;; WARNING: the simplified rewiring algorithm does not ensure that the network will be completely connected
+;; for large networks this shouldn't be too much of an issue.
+to rewire-network
+  ask links
+  [
+    if (random-float 1) < rewiring-probability
+    [
+      ask end1
+      [
+        create-link-with one-of other turtles with [not link-neighbor? myself ]
+          [set color gray + 1.5]
+      ]
+      die
+    ]
+  ]
+end
+
+
+;;infect two neighbors with the contagion
+to infect-two
+    ask turtles
+    [reset-node]
+  ask links
+    [set color gray + 1.5]
+
+  ;; infect a single agent
+  ask one-of turtles
+  [
+    set infected? true
+    set color yellow
+    set size infected-size
+    ask one-of link-neighbors [
+          set infected? true
+          set color yellow
+          set size infected-size
+    ]
+  ]
+  set num-infected 2
+end
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Dynamics Procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 to go
-  science
-  evolution
-  ask turtles [set age age + 1]
+  ;; stop if every agent has already been infected
+  if all? turtles [infected?]
+    [stop]
+
+  ask turtles with [ infected? = true ]
+  [
+    ;; infect neighbors
+    ask link-neighbors with [not infected?]
+      [
+        ;; Logic Flow
+        let yes-infect false ;; by default, do not infect
+        ifelse (complex-contagion?)
+        [if ( count link-neighbors with [infected? = true] > 1 or random-float 1 <= prob-spread-one ) [set yes-infect true] ] ;; infect with next to 2+ infected OR infect with probability q
+        [if ( random-float 1 <= prob-infection ) [set yes-infect true] ] ;; infect with probability p
+
+        if ( yes-infect = true )
+        [
+          set infected? true
+          set color yellow
+          set size infected-size
+
+          ;; color the link with the node doing the infection for viz purposes only
+          ask link-with myself [set color yellow]
+
+        ]
+    ]
+  ]
+  set num-infected count turtles with [infected? = true]
   tick
 end
 
-
-
-to science
-  ask turtles[
-    if random-float 1 < new-hypothesis [ ;;tackle a new study?
-      let actual-truth? false
-      if base-rate < random-float 1
-        [ set actual-truth? true ]
-      ifelse actual-truth?
-      ;;if true, pos result with probability power
-      [ ;;publish pos result or maybe publish negative result
-        ifelse (random-float 1 < power) ;;true positive
-        [ set pub-payoff pub-payoff + 1 ]
-        [
-          if (random-float 1 < prob-publish-neg-result) ;;false negative
-        [ set pub-payoff (pub-payoff + payoff-neg-result) ]
-      ]
-    ]
-    ;;if false, pos result with probability false-pos-rate
-    [ ;;publish pos result or maybe publish negative result
-      ifelse (random-float 1 < false-pos-rate) ;;false positive
-      [ set pub-payoff pub-payoff + 1 ]
-      [
-        if (random-float 1 < prob-publish-neg-result) ;;false negative
-      [ set pub-payoff (pub-payoff + payoff-neg-result) ]
-    ]
-  ]
-]
-
-
-]
-end
-
-;;agent-level procedure
-;;returns the probability that a lab does a new study
-to-report new-hypothesis
-  report 1 - (effort-influence * (log effort 10))
-end
-
-
-
-to evolution
-  ;;death
-  let death-labs n-of reproduction-samplesize turtles
-  let oldest-lab max-one-of death-labs [age] ;;the oldest in the set
-  ask oldest-lab [die] ;;kill off this lab.
-  ;;birth
-  let birth-labs n-of reproduction-samplesize turtles
-  let fanciest-lab max-one-of birth-labs [pub-payoff] ;;the oldest in the set
-  ask fanciest-lab [
-    hatch 1 [ ;;create a copy that inherits its attributes
-      set pub-payoff 0
-      set age 0
-      mutate
-      set false-pos-rate (power / (1 + ((1 - power) * effort)))
-    ]
-  ]
-end
-
-;;agent-level procedure
-;;mutate mutable properties
-to mutate
-  ;;mutate power
-  if random-float 1 < mutation-rate-power [
-    set power power + (random-normal 0 mutation-SD-power)
-    if power > 1 [set power 1]
-    if power < 0 [set power 0]
-  ]
-  ;;mutate effort
-  if random-float 1 < mutation-rate-effort [
-    set effort effort + (random-normal 0 mutation-SD-effort)
-    if effort > 100 [set effort 100]
-    if effort < 1 [set effort 1]
-  ]
-end
-
-
-;;report the proportion of total publications that are wrong
-to-report false-discovery-rate
-  let pow (mean [power] of turtles)
-  let fpr (mean [false-pos-rate] of turtles)
-
-  let total-pubs (base-rate * (pow + (1 - pow) * prob-publish-neg-result) +
-                 (1 - base-rate) * (fpr + (1 - fpr) *  prob-publish-neg-result))
-  let false-pubs (base-rate * (1 - pow) * prob-publish-neg-result) +
-                 ((1 - base-rate) * fpr)
-  report false-pubs / total-pubs
-end
-
-
 ; Copyright 2023 Paul E. Smaldino.
 ; See Info tab for full copyright and license.
+
 @#$#@#$#@
 GRAPHICS-WINDOW
-298
-260
-577
-274
+295
+10
+777
+493
 -1
 -1
-2.6832
+2.9441
 1
 10
 1
 1
 1
 0
-1
-1
-1
 0
-100
 0
 1
+-80
+80
+-80
+80
 1
 1
 1
@@ -168,14 +191,14 @@ ticks
 30.0
 
 SLIDER
-20
-70
-192
-103
-num-labs
-num-labs
-0
+9
+125
+189
+158
+num-nodes
+num-nodes
 100
+500
 100.0
 1
 1
@@ -183,201 +206,59 @@ NIL
 HORIZONTAL
 
 SLIDER
-20
-107
-192
-140
-base-rate
-base-rate
+8
+161
+189
+194
+rewiring-probability
+rewiring-probability
 0
 1
-0.1
-.05
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-143
-192
-176
-effort-init
-effort-init
-0
-100
-75.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-179
-192
-212
-power-init
-power-init
-0
-1
-0.8
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-261
-203
-294
-prob-publish-neg-result
-prob-publish-neg-result
-0
-1
-0.0
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-340
-213
-373
-mutation-rate-effort
-mutation-rate-effort
-0
-1
-0.1
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-19
-415
-214
-448
-mutation-SD-effort
-mutation-SD-effort
-0
-10
 1.0
-.1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-19
-453
-215
-486
-mutation-SD-power
-mutation-SD-power
-0
-.1
-0.01
-.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-20
-378
-213
-411
-mutation-rate-power
-mutation-rate-power
-0
-.1
-0.008
-.001
-1
-NIL
-HORIZONTAL
-
-SLIDER
-19
-300
-205
-333
-payoff-neg-result
-payoff-neg-result
-0
-2
-0.0
-.01
+0.001
 1
 NIL
 HORIZONTAL
 
 PLOT
-281
-27
-594
-256
-Power and false positives
+8
+237
+285
+431
+proportion infected
 time
-NIL
-0.0
-10.0
+ infected
 0.0
 1.0
-true
-true
-"" ""
-PENS
-"power" 1.0 0 -955883 true "" "plot mean [power] of turtles"
-"false pos" 1.0 0 -13345367 true "" "plot mean [false-pos-rate] of turtles"
-"false disc" 1.0 0 -7500403 true "" "plot false-discovery-rate"
-
-PLOT
-281
-279
-593
-499
-Effort
-time
-effort
 0.0
-10.0
-0.0
-100.0
+1.0
 true
 false
 "" ""
 PENS
-"effort" 1.0 0 -10899396 true "" "plot mean [effort] of turtles"
+"inf" 1.0 0 -2674135 true "" "plot (num-infected ) / (count turtles)"
+
+SLIDER
+8
+196
+189
+229
+prob-infection
+prob-infection
+0
+1
+0.1
+0.01
+1
+NIL
+HORIZONTAL
 
 BUTTON
-20
-33
-111
-66
-NIL
-setup
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-116
-33
-192
-66
-NIL
+10
+47
+131
+81
+go
 go
 T
 1
@@ -389,117 +270,56 @@ NIL
 NIL
 1
 
-TEXTBOX
-203
-82
-353
-100
-N
-11
-0.0
-1
-
-TEXTBOX
-204
-119
-354
-137
-b
-11
-0.0
-1
-
-TEXTBOX
-202
-153
-352
-171
-e_0
-11
-0.0
-1
-
-TEXTBOX
-201
-186
-351
-204
-W_0
-11
-0.0
-1
-
-TEXTBOX
-214
-244
-364
-262
-p
-11
-0.0
-1
-
-TEXTBOX
-216
-282
-366
-300
-v
-11
-0.0
-1
-
-TEXTBOX
+MONITOR
+194
+176
+287
 221
-353
-371
-371
-mu_e
+NIL
+num-infected
+17
+1
 11
-0.0
+
+BUTTON
+10
+10
+131
+44
+setup
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
 1
 
-TEXTBOX
-220
-390
-370
-408
-mu_W
+SWITCH
 11
-0.0
-1
-
-TEXTBOX
-220
-425
-370
-443
-sigma_e
-11
-0.0
-1
-
-TEXTBOX
-221
-462
-371
-480
-sigma_W
-11
-0.0
-1
-
-SLIDER
-20
-222
-192
-255
-effort-influence
-effort-influence
+87
+190
+120
+complex-contagion?
+complex-contagion?
 0
 1
-0.0
-0.01
+-1000
+
+SLIDER
+8
+436
+137
+469
+prob-spread-one
+prob-spread-one
+0
+1
+0.001
+0.001
 1
 NIL
 HORIZONTAL
@@ -507,15 +327,15 @@ HORIZONTAL
 @#$#@#$#@
 ## Model Information and Materials
 
-This model is original material created by Paul E. Smaldino. The model is based on work by Smaldino and McElreath (2016). 
+This model is original material created by Paul E. Smaldino, building on work by Centola and Macy (2007). 
 
-* Smaldino PE, McElreath R (2016) The natural selection of bad science. Royal Society Open Science 3: 160384.
+* Centola D, Macy M (2007) Complex contagions and the weakness of long ties. American Journal of Sociology 113: 702-734.
 
 ## References and Citation
 
 For this model:
 
-* Smaldino PE (2023). The Natural Selection of Bad Science. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
+* Smaldino PE (2023). Small World Diffusion. Modeling Social Behavior.  https://github.com/psmaldino/modsoc/
 
 For the book:
 
@@ -698,6 +518,23 @@ true
 0
 Line -7500403 true 150 0 150 150
 
+link
+true
+0
+Line -7500403 true 150 0 150 300
+
+link direction
+true
+0
+Line -7500403 true 150 150 30 225
+Line -7500403 true 150 150 270 225
+
+outlined circle
+false
+0
+Circle -7500403 true true 0 0 300
+Circle -16777216 false false -1 -1 301
+
 pentagon
 false
 0
@@ -723,22 +560,6 @@ Polygon -7500403 true true 165 180 165 210 225 180 255 120 210 135
 Polygon -7500403 true true 135 105 90 60 45 45 75 105 135 135
 Polygon -7500403 true true 165 105 165 135 225 105 255 45 210 60
 Polygon -7500403 true true 135 90 120 45 150 15 180 45 165 90
-
-sheep
-false
-15
-Circle -1 true true 203 65 88
-Circle -1 true true 70 65 162
-Circle -1 true true 150 105 120
-Polygon -7500403 true false 218 120 240 165 255 165 278 120
-Circle -7500403 true false 214 72 67
-Rectangle -1 true true 164 223 179 298
-Polygon -1 true true 45 285 30 285 30 240 15 195 45 210
-Circle -1 true true 3 83 150
-Rectangle -1 true true 65 221 80 296
-Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
-Polygon -7500403 true false 276 85 285 105 302 99 294 83
-Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
 square
 false
@@ -824,13 +645,6 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
-wolf
-false
-0
-Polygon -16777216 true false 253 133 245 131 245 133
-Polygon -7500403 true true 2 194 13 197 30 191 38 193 38 205 20 226 20 257 27 265 38 266 40 260 31 253 31 230 60 206 68 198 75 209 66 228 65 243 82 261 84 268 100 267 103 261 77 239 79 231 100 207 98 196 119 201 143 202 160 195 166 210 172 213 173 238 167 251 160 248 154 265 169 264 178 247 186 240 198 260 200 271 217 271 219 262 207 258 195 230 192 198 210 184 227 164 242 144 259 145 284 151 277 141 293 140 299 134 297 127 273 119 270 105
-Polygon -7500403 true true -1 195 14 180 36 166 40 153 53 140 82 131 134 133 159 126 188 115 227 108 236 102 238 98 268 86 269 92 281 87 269 103 269 113
-
 x
 false
 0
@@ -839,8 +653,137 @@ Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
 NetLogo 6.3.0
 @#$#@#$#@
+setup
+repeat 5 [rewire-one]
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="time-to-spread-simple" repetitions="100" runMetricsEveryStep="false">
+    <setup>generate-topology
+infect-two</setup>
+    <go>spread</go>
+    <timeLimit steps="300"/>
+    <exitCondition>rewiring-probability &gt; 1</exitCondition>
+    <metric>ticks</metric>
+    <metric>pct-infected</metric>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0"/>
+      <value value="0.001"/>
+      <value value="0.002"/>
+      <value value="0.003"/>
+      <value value="0.004"/>
+      <value value="0.005"/>
+      <value value="0.006"/>
+      <value value="0.007"/>
+      <value value="0.008"/>
+      <value value="0.009"/>
+      <value value="0.01"/>
+      <value value="0.02"/>
+      <value value="0.03"/>
+      <value value="0.04"/>
+      <value value="0.05"/>
+      <value value="0.06"/>
+      <value value="0.07"/>
+      <value value="0.08"/>
+      <value value="0.09"/>
+      <value value="0.1"/>
+      <value value="0.2"/>
+      <value value="0.3"/>
+      <value value="0.4"/>
+      <value value="0.5"/>
+      <value value="0.6"/>
+      <value value="0.7"/>
+      <value value="0.8"/>
+      <value value="0.9"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="prob-infection">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="complex-contagion?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="time-to-spread-complex" repetitions="100" runMetricsEveryStep="false">
+    <setup>generate-topology
+infect-two</setup>
+    <go>spread</go>
+    <timeLimit steps="300"/>
+    <exitCondition>rewiring-probability &gt; 1</exitCondition>
+    <metric>ticks</metric>
+    <metric>pct-infected</metric>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0"/>
+      <value value="0.001"/>
+      <value value="0.002"/>
+      <value value="0.003"/>
+      <value value="0.004"/>
+      <value value="0.005"/>
+      <value value="0.006"/>
+      <value value="0.007"/>
+      <value value="0.008"/>
+      <value value="0.009"/>
+      <value value="0.01"/>
+      <value value="0.02"/>
+      <value value="0.03"/>
+      <value value="0.04"/>
+      <value value="0.05"/>
+      <value value="0.06"/>
+      <value value="0.07"/>
+      <value value="0.08"/>
+      <value value="0.09"/>
+      <value value="0.1"/>
+      <value value="0.2"/>
+      <value value="0.3"/>
+      <value value="0.4"/>
+      <value value="0.5"/>
+      <value value="0.6"/>
+      <value value="0.7"/>
+      <value value="0.8"/>
+      <value value="0.9"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="500"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="prob-infection">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="complex-contagion?">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment 1" repetitions="100" runMetricsEveryStep="false">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="10000"/>
+    <metric>num-infected</metric>
+    <enumeratedValueSet variable="prob-spread-one">
+      <value value="0.001"/>
+      <value value="0.01"/>
+      <value value="0.1"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.001"/>
+      <value value="0.01"/>
+      <value value="0.1"/>
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="100"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="complex-contagion?">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="prob-infection">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
