@@ -5,7 +5,7 @@ library(ggplot2)
 library(dplyr)
 library(data.table)
 
-data <- data.frame(c(1, 3, 3, 3, 3))
+data <- data.frame(c(1, 3, 3, 3, 2))
 
 names(data)[1] = "Degree"
 
