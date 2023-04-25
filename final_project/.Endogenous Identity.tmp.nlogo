@@ -1,19 +1,34 @@
+extensions [array]
+
+globals [
+ observables-weights ;; weight applied to the observable traits
+]
+
 turtles-own [
   observables ;; vector of observable traits
   non-observables ;; vector of non-observable traits
 ]
 
-to go
+breed [identities identity]
 
+
+to go
+  let a array:from-list n-values 5 [0]
+  foreach n-values 5 [ i -> i ] [ i -> array:set a i i * i ]
+print a
 end
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Action Procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 
 ;; Create nodes.
 to setup
   clear-all
   ask patches [set pcolor white] ;; make background white
   set-agents ;; initialize the agents
-  ;wire-lattice ;; arrange them in a ring lattice
-  rewire-network ;; apply the small-world algorithm
   reset-ticks
 end
 
@@ -112,7 +127,7 @@ num-nodes
 num-nodes
 0
 1000
-5.0
+6.0
 1
 1
 NIL
@@ -127,7 +142,7 @@ num-observables
 num-observables
 1
 100
-1.0
+2.0
 1
 1
 NIL
@@ -142,7 +157,7 @@ num-nonobservables
 num-nonobservables
 1
 100
-1.0
+2.0
 1
 1
 NIL
@@ -167,21 +182,6 @@ NIL
 
 SLIDER
 14
-285
-186
-318
-rewiring-probability
-rewiring-probability
-0
-1
-0.0
-0.01
-1
-NIL
-HORIZONTAL
-
-SLIDER
-14
 246
 186
 279
@@ -189,7 +189,7 @@ wiring-probability
 wiring-probability
 0
 1
-0.06
+1.0
 0.01
 1
 NIL
@@ -219,7 +219,7 @@ BUTTON
 44
 NIL
 go
-NIL
+T
 1
 T
 OBSERVER
@@ -227,7 +227,7 @@ NIL
 NIL
 NIL
 NIL
-1
+0
 
 @#$#@#$#@
 ## WHAT IS IT?
