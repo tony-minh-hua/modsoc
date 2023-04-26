@@ -1,34 +1,40 @@
-extensions [array]
-
 globals [
  observables-weights ;; weight applied to the observable traits
 ]
 
-turtles-own [
+breed [identities identity]
+breed [individuals individual]
+
+identities-own [
+ traits
+ members
+]
+
+individuals-own [
   observables ;; vector of observable traits
   non-observables ;; vector of non-observable traits
 ]
 
-breed [identities identity]
-
-
 to go
-  let a array:from-list n-values 5 [0]
-  foreach n-values 5 [ i -> i ] [ i -> array:set a i i * i ]
-print a
+
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Action Procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+to evaluate-identities
+  ask identities [
 
+  ]
+end
 
 ;; Create nodes.
 to setup
   clear-all
   ask patches [set pcolor white] ;; make background white
   set-agents ;; initialize the agents
+  set-identities ;; initialize the identities
   reset-ticks
 end
 
@@ -36,15 +42,23 @@ end
 ;;; Setup Procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;create identities
+to set-identities
+  create-identities num-nodes [
+    set members turtle (who - num-nodes) ;; match each identity with an initial individual
+  ]
+end
+
 ;;create some agents
 to set-agents
-  create-turtles num-nodes [
+  create-individuals num-nodes [
     set shape "circle"
     set color orange
     set size 2
     set observables n-values num-observables [1 - (2 * random-float 1)] ;; create initial vector of observable traits
     set non-observables n-values num-nonobservables [1 - (2 * random-float 1)] ;; create initial vector of non-observable traits
-  ]
+    ]
+
   layout-circle (sort turtles) max-pxcor - 8
   ;; space out turtles to see clustering
   ask turtles
@@ -141,7 +155,7 @@ SLIDER
 num-observables
 num-observables
 1
-100
+10
 2.0
 1
 1
@@ -156,7 +170,7 @@ SLIDER
 num-nonobservables
 num-nonobservables
 1
-100
+10
 2.0
 1
 1
@@ -213,13 +227,45 @@ NIL
 1
 
 BUTTON
-140
-11
-203
-44
+139
+10
+202
+43
 NIL
 go
 T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+0
+
+SLIDER
+14
+285
+186
+318
+num-identity-markers
+num-identity-markers
+1
+10
+2.0
+1
+1
+NIL
+HORIZONTAL
+
+BUTTON
+68
+49
+143
+82
+go once
+go
+NIL
 1
 T
 OBSERVER
