@@ -6,7 +6,7 @@ breed [identities identity]
 breed [individuals individual]
 
 identities-own [
- traits
+ traits ;; average value of its members
  members ;; reference to agents with this identity
 ]
 
@@ -17,34 +17,60 @@ individuals-own [
 ]
 
 to go
+let list1 [1 2 3 4 5]
+  let list2 [5 4 3 2 1]
+  let distance2 euclidean-distance list1 list2
+  print distance2
+end
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Helper Functions ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+to-report list-averages [list-of-lists]
+  let num-lists length list-of-lists
+  let list-length length first list-of-lists
+  let result n-values list-length [0]
+
+  foreach list-of-lists [
+    list-item ->
+    foreach range list-length [
+      i ->
+      set result replace-item i result (item i result + item i list-item)
+    ]
+  ]
+
+  set result map [x -> x / num-lists] result
+
+  report result
+end
+
+to-report euclidean-distance [list1 list2]
+  let distance-measure 0
+  (foreach list1 list2
+    [ [a b] -> set distance-measure distance-measure + (a - b) * (a - b) ])
+  report sqrt(distance-measure)
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Action Procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;; Tells all individuals to remove themselves from any identities
-to clear-membership
+to join-group
   ask individuals [
-    ask ID [
-      set members remove myself members
+    ask identities [
+
     ]
   ]
 end
 
-to evaluate-weights
-
-end
-
+;; Calculates a group's observable identity using group members's observables
 to evaluate-identities
   ask identities [
-    ;; initialize the working data out here to collect values
-    foreach members
-      [
-       ;; TODO: Add up the values for the observables by order and then take average or median values
-       member -> foreach observables [ ] ]
-    ;[member -> set sum-value sum-value + [who] of member]
+    let data[]
+    ask members [
+      set data lput observables data
+    ]
+    set traits list-averages data
   ]
 end
 
@@ -65,8 +91,7 @@ end
 ;;create identities
 to set-identities
   create-identities num-nodes [
-    set members[]
-    set members lput (turtle (who - num-nodes)) members ;; match each identity with an initial individual
+    set members (turtle (who - num-nodes)) ;; match each identity with an initial individual
   ]
   ask individuals [
     set ID turtle (who + num-nodes) ;; match each individual with their initial identity
@@ -90,43 +115,6 @@ to set-agents
     facexy 0 0
     if who mod 2 = 0 [fd 10]
   ]
-end
-
-;; Each possible pair of nodes gets a chance to
-;; create a link between them with a specified probability.
-to wire
-  ask links [ die ]
-  ask turtles [
-    ask turtles with [ who > [ who ] of myself ] [
-      if random-float 1.0 < wiring-probability [
-        create-link-with myself
-      ]
-    ]
-  ]
-  tick
-end
-
-;; creates the links for the ring lattice
-to wire-lattice
-  let degree 4 ;;assert degree 4. This can be modified for arbitrary degree
-  ;; iterate over the nodes
-  let n 0
-  while [n < count turtles]
-  [
-    ;; iterate over pairs of edges
-    let k 1
-    while [k <= degree / 2]
-    [
-      make-edge turtle n turtle ((n + k) mod count turtles)
-      set k k + 1
-    ]
-    set n n + 1
-  ]
-end
-
-;; connects the two nodes
-to make-edge [node1 node2]
-  ask node1 [ create-link-with node2 [ set color gray + 1.5] ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -165,7 +153,7 @@ num-nodes
 num-nodes
 0
 1000
-2.0
+4.0
 1
 1
 NIL
@@ -202,9 +190,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-5
+1
 10
-68
+64
 43
 NIL
 setup
@@ -234,26 +222,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-73
+141
 10
-136
-43
-NIL
-wire
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-139
-10
-202
+204
 43
 NIL
 go
@@ -283,10 +254,10 @@ NIL
 HORIZONTAL
 
 BUTTON
-68
-49
-143
-82
+65
+10
+140
+43
 go once
 go
 NIL
