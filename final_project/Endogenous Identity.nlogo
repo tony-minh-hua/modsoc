@@ -7,12 +7,13 @@ breed [individuals individual]
 
 identities-own [
  traits
- members
+ members ;; reference to agents with this identity
 ]
 
 individuals-own [
   observables ;; vector of observable traits
   non-observables ;; vector of non-observable traits
+  ID ;; reference to agent's singular identity
 ]
 
 to go
@@ -23,9 +24,27 @@ end
 ;;; Action Procedures ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Tells all individuals to remove themselves from any identities
+to clear-membership
+  ask individuals [
+    ask ID [
+      set members remove myself members
+    ]
+  ]
+end
+
+to evaluate-weights
+
+end
+
 to evaluate-identities
   ask identities [
-
+    ;; initialize the working data out here to collect values
+    foreach members
+      [
+       ;; TODO: Add up the values for the observables by order and then take average or median values
+       member -> foreach observables [ ] ]
+    ;[member -> set sum-value sum-value + [who] of member]
   ]
 end
 
@@ -35,6 +54,7 @@ to setup
   ask patches [set pcolor white] ;; make background white
   set-agents ;; initialize the agents
   set-identities ;; initialize the identities
+  evaluate-identities ;; determine the traits of the identities
   reset-ticks
 end
 
@@ -45,7 +65,11 @@ end
 ;;create identities
 to set-identities
   create-identities num-nodes [
-    set members turtle (who - num-nodes) ;; match each identity with an initial individual
+    set members[]
+    set members lput (turtle (who - num-nodes)) members ;; match each identity with an initial individual
+  ]
+  ask individuals [
+    set ID turtle (who + num-nodes) ;; match each individual with their initial identity
   ]
 end
 
@@ -141,7 +165,7 @@ num-nodes
 num-nodes
 0
 1000
-6.0
+2.0
 1
 1
 NIL
