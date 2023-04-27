@@ -79,7 +79,7 @@ to-report multiply-list [original-list scalar]
   report new-list
 end
 
-;; Takes two lists and reports distance between them
+;; Takes two lists and reports distance between
 to-report euclidean-distance [list1 list2]
   let distance-measure 0
   (foreach list1 list2
