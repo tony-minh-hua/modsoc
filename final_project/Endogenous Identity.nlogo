@@ -17,7 +17,10 @@ individuals-own [
 ]
 
 to go
+;; Have individuals choose to join other groups
 
+
+determine-observable-weights ;; This should occur last for when we need to update the identities
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60,11 +63,11 @@ to-report sum-of-differences [main-list set-of-lists]
   report diff-list
 end
 
-;; Takes a list and reports a list where max value index is 1 and all other elements set to 0
+;; Takes a list and reports a list where min value index is 1 and all other elements set to 0
 to-report replace-with-one [original-list]
-  let max-index position (max original-list) original-list
+  let min-index position (min original-list) original-list
   let new-list n-values length original-list [0]
-  set new-list replace-item max-index new-list 1
+  set new-list replace-item min-index new-list 1
   report new-list
 end
 
@@ -77,6 +80,23 @@ to-report multiply-list [original-list scalar]
       set new-list lput multiplied-item new-list
   ]
   report new-list
+end
+
+;; Adds up a list of lists and reports a list with their sum
+to-report sum-of-lists [set-of-lists]
+  let sum-list[]
+  let i 0 ;; item 0 is the first item in a list
+
+  repeat num-observables [
+    let sum-amount 0
+    foreach set-of-lists [
+      [ a ] ->
+      set sum-amount sum-amount + item i a
+    ]
+    set i (i + 1)
+    set sum-list lput sum-amount sum-list
+  ]
+  report sum-list
 end
 
 ;; Takes two lists and reports distance between them
@@ -99,12 +119,27 @@ to join-group
 end
 
 to determine-observable-weights
-  ask identities [
-    let data[]
-    ask members [
+  let each-identity-weight[]
 
+  ask identities [
+    ;; Get the distance between the group members observable identity and the group's average observable identity
+    let members-traits[]
+    ask members [
+      set members-traits lput observables members-traits
     ]
+
+    let diff-group-member sum-of-differences traits members-traits
+
+    ;; For the observable identity, pick one that has the least distance
+    let diff-group-member-select replace-with-one diff-group-member
+
+    ;; Scale up the identity by number of members
+    let diff-group-member-select-scaled multiply-list diff-group-member-select count members
+
+    set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
   ]
+  ;; Add all of the vectors together to form the global observable weights
+    set observables-weights sum-of-lists each-identity-weight
 end
 
 ;; Calculates a group's observable identity using group members's observables
@@ -135,7 +170,7 @@ end
 ;;create identities
 to set-identities
   create-identities num-nodes [
-    set members (turtle (who - num-nodes)) ;; match each identity with an initial individual
+    set members (turtle-set turtle (who - num-nodes)) ;; match each identity with an initial individual
   ]
   ask individuals [
     set ID turtle (who + num-nodes) ;; match each individual with their initial identity
@@ -197,7 +232,7 @@ num-nodes
 num-nodes
 0
 1000
-4.0
+6.0
 1
 1
 NIL
