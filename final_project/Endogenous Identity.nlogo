@@ -21,7 +21,10 @@ to go
 ;; Have individuals choose to join other groups
 join-group
 
-;determine-observable-weights ;; This should occur last for when we need to update the identities
+;; Kill dead identities
+remove-empty-identities
+
+determine-observable-weights ;; This should occur last for when we need to update the identities
 end
 
 
@@ -57,6 +60,10 @@ to join-group
   ]
 end
 
+to remove-empty-identities
+  ask identities [if empty? members [die]]
+end
+
 to determine-observable-weights
   let each-identity-weight[]
 
@@ -64,7 +71,7 @@ to determine-observable-weights
     ;; Get the distance between the group members observable identity and the group's average observable identity
     let members-traits[]
     ;; Get a lists of lists
-    ask members [
+    ask turtle-set members [
       set members-traits lput observables members-traits
     ]
 
@@ -74,13 +81,13 @@ to determine-observable-weights
     let diff-group-member-select replace-with-one diff-group-member
 
     ;; Scale up the identity by number of members
-    let diff-group-member-select-scaled multiply-list diff-group-member-select count members
+    let diff-group-member-select-scaled multiply-list diff-group-member-select count turtle-set members
 
     set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
   ]
     ;; Add all of the vectors together to form the global observable weights
     set observables-weights sum-of-lists each-identity-weight
-    ;print (observables-weights)
+    print (observables-weights)
 end
 
 ;; Calculates a group's observable identity using group members's observables
@@ -231,24 +238,12 @@ to-report euclidean-distance [list1 list2]
     [ [a b] -> set distance-measure distance-measure + (a - b) * (a - b) ])
   report sqrt(distance-measure)
 end
-
-;; Add a turtle to an agent set
-to-report join-turtles [a-set]
-  set a-set (turtle-set a-set self)
-  report a-set
-end
-
-;; Remove a turtle to an agent set
-to-report leave-turtles [a-set]
-  set a-set other a-set
-  report a-set
-end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-701
-502
+745
+16
+1236
+508
 -1
 -1
 3.0
@@ -272,40 +267,40 @@ ticks
 30.0
 
 SLIDER
-15
-135
-187
-168
+5
+48
+177
+81
 num-nodes
 num-nodes
 0
 1000
-4.0
+250.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-15
-174
-187
-207
+5
+87
+177
+120
 num-observables
 num-observables
 1
 10
-2.0
+10.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-15
-211
-187
-244
+5
+124
+177
+157
 num-nonobservables
 num-nonobservables
 1
@@ -333,21 +328,6 @@ NIL
 NIL
 1
 
-SLIDER
-14
-246
-186
-279
-wiring-probability
-wiring-probability
-0
-1
-1.0
-0.01
-1
-NIL
-HORIZONTAL
-
 BUTTON
 141
 10
@@ -365,21 +345,6 @@ NIL
 NIL
 0
 
-SLIDER
-14
-285
-186
-318
-num-identity-markers
-num-identity-markers
-1
-10
-2.0
-1
-1
-NIL
-HORIZONTAL
-
 BUTTON
 65
 10
@@ -396,6 +361,17 @@ NIL
 NIL
 NIL
 0
+
+MONITOR
+213
+11
+339
+56
+Number of Identities
+count identities
+1
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
