@@ -25,6 +25,10 @@ join-group
 remove-empty-identities
 
 determine-observable-weights ;; This should occur last for when we need to update the identities
+
+ask identities [
+   print (length members)
+  ]
 end
 
 
@@ -87,7 +91,6 @@ to determine-observable-weights
   ]
     ;; Add all of the vectors together to form the global observable weights
     set observables-weights sum-of-lists each-identity-weight
-    print (observables-weights)
 end
 
 ;; Calculates a group's observable identity using group members's observables
@@ -238,6 +241,15 @@ to-report euclidean-distance [list1 list2]
     [ [a b] -> set distance-measure distance-measure + (a - b) * (a - b) ])
   report sqrt(distance-measure)
 end
+
+;; Reports a list of the identity membership sizes
+to-report identity-size
+  let membership-size[]
+  ask identities [
+   set membership-size lput length members membership-size
+  ]
+  report membership-size
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
 745
@@ -372,6 +384,24 @@ count identities
 1
 1
 11
+
+PLOT
+213
+62
+701
+532
+Group Identities
+Membership Size
+Identity Distance
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" "clear-plot"
+PENS
+"default" 1.0 2 -16777216 true "" "foreach sort turtles [ x ->\nplotxy [xcor] of x [ycor] of x\n]"
 
 @#$#@#$#@
 ## WHAT IS IT?
