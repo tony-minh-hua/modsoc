@@ -48,13 +48,11 @@ to join-group
     ]
     if (temp-ID != nobody) [
       ;; Remove individual from old identity group
-      ;ask ID [set members (members with [not member? self turtle-set myself])]
-      ;ask ID [set members turtle-set]
-      ; TODO SOMETHING?
+      ask ID [set members remove myself members]
       ;; Add individual to new identity group
       set ID temp-ID
       ;; Adds individual to newly linked ID group
-      ask ID [set members (turtle-set members turtle-reference)]
+      ask ID [set members (lput myself members)]
     ]
   ]
 end
@@ -89,7 +87,7 @@ end
 to evaluate-identities
   ask identities [
     let data[]
-    ask members [
+    ask turtle-set members [
       set data lput observables data
     ]
     set traits list-averages data
@@ -114,7 +112,9 @@ end
 ;;create identities
 to set-identities
   create-identities num-nodes [
-    set members (turtle-set turtle (who - num-nodes)) ;; match each identity with an initial individual
+    ;set members (turtle-set turtle (who - num-nodes)) ;; match each identity with an initial individual
+    set members[]
+    set members (lput turtle (who - num-nodes) members)
   ]
   ask individuals [
     set ID turtle (who + num-nodes) ;; match each individual with their initial identity
