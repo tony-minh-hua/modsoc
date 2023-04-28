@@ -17,10 +17,127 @@ individuals-own [
 ]
 
 to go
+
 ;; Have individuals choose to join other groups
+join-group
+
+;determine-observable-weights ;; This should occur last for when we need to update the identities
+end
 
 
-determine-observable-weights ;; This should occur last for when we need to update the identities
+
+;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Action Procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;
+to join-group
+  ask individuals [
+    ;; Weigh the observables list
+    let weighted-observables product-of-lists observables observables-weights
+    ;; Compare distance from individual's observables with their current identity traits
+    let a euclidean-distance weighted-observables [traits] of ID
+    let temp-ID nobody
+    ask identities [
+      ;; Compare distance from the individual's observables with the traits of the particular identity group
+      let b euclidean-distance [weighted-observables] of myself traits
+      ;; Calculate utility and decide if it is worth joining the other group.
+      ;; If it is worth joining, remove individual from current group
+      if (b > a) [
+        set a b
+        set temp-ID self
+      ]
+    ]
+    if (temp-ID != nobody) [
+      ;; Remove individual from old identity group
+      ;ask ID [set members (members with [not member? self turtle-set myself])]
+      ;ask ID [set members turtle-set]
+      ; TODO SOMETHING?
+      ;; Add individual to new identity group
+      set ID temp-ID
+      ;; Adds individual to newly linked ID group
+      ask ID [set members (turtle-set members turtle-reference)]
+    ]
+  ]
+end
+
+to determine-observable-weights
+  let each-identity-weight[]
+
+  ask identities [
+    ;; Get the distance between the group members observable identity and the group's average observable identity
+    let members-traits[]
+    ;; Get a lists of lists
+    ask members [
+      set members-traits lput observables members-traits
+    ]
+
+    let diff-group-member sum-of-differences traits members-traits
+
+    ;; For the observable identity, pick one that has the least distance
+    let diff-group-member-select replace-with-one diff-group-member
+
+    ;; Scale up the identity by number of members
+    let diff-group-member-select-scaled multiply-list diff-group-member-select count members
+
+    set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
+  ]
+    ;; Add all of the vectors together to form the global observable weights
+    set observables-weights sum-of-lists each-identity-weight
+    ;print (observables-weights)
+end
+
+;; Calculates a group's observable identity using group members's observables
+to evaluate-identities
+  ask identities [
+    let data[]
+    ask members [
+      set data lput observables data
+    ]
+    set traits list-averages data
+  ]
+end
+
+;; Create nodes.
+to setup
+  clear-all
+  set observables-weights n-values num-observables [ 1 ]
+  ask patches [set pcolor white] ;; make background white
+  set-agents ;; initialize the agents
+  set-identities ;; initialize the identities
+  evaluate-identities ;; determine the traits of the identities
+  reset-ticks
+end
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Setup Procedures ;;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;create identities
+to set-identities
+  create-identities num-nodes [
+    set members (turtle-set turtle (who - num-nodes)) ;; match each identity with an initial individual
+  ]
+  ask individuals [
+    set ID turtle (who + num-nodes) ;; match each individual with their initial identity
+  ]
+end
+
+;;create some agents
+to set-agents
+  create-individuals num-nodes [
+    set shape "circle"
+    set color orange
+    set size 2
+    set observables n-values num-observables [1 - (2 * random-float 1)] ;; create initial vector of observable traits
+    set non-observables n-values num-nonobservables [1 - (2 * random-float 1)] ;; create initial vector of non-observable traits
+    ]
+
+  layout-circle (sort turtles) max-pxcor - 8
+  ;; space out turtles to see clustering
+  ask turtles
+  [
+    facexy 0 0
+    if who mod 2 = 0 [fd 10]
+  ]
 end
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -99,6 +216,14 @@ to-report sum-of-lists [set-of-lists]
   report sum-list
 end
 
+;; Multiply values element by element between two lists and reports a list of their product
+to-report product-of-lists [list1 list2]
+  let product-list[]
+  (foreach list1 list2
+    [ [a b] -> set product-list lput (a * b) product-list ])
+  report product-list
+end
+
 ;; Takes two lists and reports distance between them
 to-report euclidean-distance [list1 list2]
   let distance-measure 0
@@ -107,93 +232,16 @@ to-report euclidean-distance [list1 list2]
   report sqrt(distance-measure)
 end
 
-;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Action Procedures ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;
-to join-group
-  ask individuals [
-    ask identities [
-
-    ]
-  ]
+;; Add a turtle to an agent set
+to-report join-turtles [a-set]
+  set a-set (turtle-set a-set self)
+  report a-set
 end
 
-to determine-observable-weights
-  let each-identity-weight[]
-
-  ask identities [
-    ;; Get the distance between the group members observable identity and the group's average observable identity
-    let members-traits[]
-    ask members [
-      set members-traits lput observables members-traits
-    ]
-
-    let diff-group-member sum-of-differences traits members-traits
-
-    ;; For the observable identity, pick one that has the least distance
-    let diff-group-member-select replace-with-one diff-group-member
-
-    ;; Scale up the identity by number of members
-    let diff-group-member-select-scaled multiply-list diff-group-member-select count members
-
-    set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
-  ]
-  ;; Add all of the vectors together to form the global observable weights
-    set observables-weights sum-of-lists each-identity-weight
-end
-
-;; Calculates a group's observable identity using group members's observables
-to evaluate-identities
-  ask identities [
-    let data[]
-    ask members [
-      set data lput observables data
-    ]
-    set traits list-averages data
-  ]
-end
-
-;; Create nodes.
-to setup
-  clear-all
-  ask patches [set pcolor white] ;; make background white
-  set-agents ;; initialize the agents
-  set-identities ;; initialize the identities
-  evaluate-identities ;; determine the traits of the identities
-  reset-ticks
-end
-
-;;;;;;;;;;;;;;;;;;;;;;;;
-;;; Setup Procedures ;;;
-;;;;;;;;;;;;;;;;;;;;;;;;
-
-;;create identities
-to set-identities
-  create-identities num-nodes [
-    set members (turtle-set turtle (who - num-nodes)) ;; match each identity with an initial individual
-  ]
-  ask individuals [
-    set ID turtle (who + num-nodes) ;; match each individual with their initial identity
-  ]
-end
-
-;;create some agents
-to set-agents
-  create-individuals num-nodes [
-    set shape "circle"
-    set color orange
-    set size 2
-    set observables n-values num-observables [1 - (2 * random-float 1)] ;; create initial vector of observable traits
-    set non-observables n-values num-nonobservables [1 - (2 * random-float 1)] ;; create initial vector of non-observable traits
-    ]
-
-  layout-circle (sort turtles) max-pxcor - 8
-  ;; space out turtles to see clustering
-  ask turtles
-  [
-    facexy 0 0
-    if who mod 2 = 0 [fd 10]
-  ]
+;; Remove a turtle to an agent set
+to-report leave-turtles [a-set]
+  set a-set other a-set
+  report a-set
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -232,7 +280,7 @@ num-nodes
 num-nodes
 0
 1000
-6.0
+4.0
 1
 1
 NIL
