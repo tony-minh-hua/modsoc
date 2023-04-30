@@ -48,12 +48,12 @@ to join-group
     ;; Weigh the observables list
     let weighted-observables product-of-lists observables observables-weights
     ;; Compare distance from individual's observables with their current identity observable traits
-    let a euclidean-distance weighted-observables [traits-observable] of ID
+    let a (benefit-bigger-group [member-count] of ID - (euclidean-distance weighted-observables [traits-observable] of ID + euclidean-distance non-observables [traits-non-observable] of ID) * distance-penalty)
     let temp-ID nobody
     ask identities [
-      ;; Compare distance from the individual's observables with the observable traits of the particular identity group
-      let b euclidean-distance [weighted-observables] of myself traits-observable
       ;; Calculate utility and decide if it is worth joining the other group.
+      ;; Compare distance from the individual's observables with the observable traits of the particular identity group
+      let b (benefit-bigger-group (1 + member-count) - (euclidean-distance [weighted-observables] of myself traits-observable + euclidean-distance [non-observables] of myself traits-non-observable) * distance-penalty)
       ;; If it is worth joining, remove individual from current group
       if (b > a) [
         set a b
@@ -63,12 +63,17 @@ to join-group
     if (temp-ID != nobody) [
       ;; Remove individual from old identity group
       ask ID [set members remove myself members]
+      ;ask ID [if empty? members [die]]
       ;; Add individual to new identity group
       set ID temp-ID
       ;; Adds individual to newly linked ID group
       ask ID [set members (lput myself members)]
     ]
   ]
+end
+
+to-report benefit-bigger-group [group-size]
+  report (log (group-size * group-size-utility) e)
 end
 
 ;; Kill empty identities
@@ -116,7 +121,8 @@ to determine-observable-weights
     set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
   ]
     ;; Scale down the global weights by proportion
-    let scaled-identity-weights multiply-list (sum-of-lists each-identity-weight) (1 / num-nodes)
+    ;let scaled-identity-weights multiply-list (sum-of-lists each-identity-weight) (1 / num-nodes)
+    let scaled-identity-weights sum-of-lists each-identity-weight
     set scaled-identity-weights multiply-list scaled-identity-weights observables-influence
     let list-of-lists list n-values num-observables [ 1 ] scaled-identity-weights
     ;; Add all of the vectors together to form the global observable weights
@@ -322,7 +328,7 @@ num-nodes
 num-nodes
 0
 1000
-250.0
+100.0
 1
 1
 NIL
@@ -335,9 +341,9 @@ SLIDER
 120
 num-observables
 num-observables
-1
+0
 10
-8.0
+4.0
 1
 1
 NIL
@@ -350,9 +356,9 @@ SLIDER
 157
 num-nonobservables
 num-nonobservables
-1
+0
 10
-6.0
+4.0
 1
 1
 NIL
@@ -448,6 +454,36 @@ observables-influence
 0
 10
 1.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+7
+200
+179
+233
+group-size-utility
+group-size-utility
+1
+10
+2.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+7
+237
+179
+270
+distance-penalty
+distance-penalty
+0
+10
+2.0
 0.01
 1
 NIL
