@@ -6,7 +6,8 @@ breed [identities identity]
 breed [individuals individual]
 
 identities-own [
- traits ;; average value of its members
+ traits-observable ;; average value of its members' observables
+ traits-non-observable ;; average value of its members' nonobservables
  members ;; reference to agents with this identity
  identity-distance ;; distance with members
  member-count ;; number of members
@@ -46,12 +47,12 @@ to join-group
   ask individuals [
     ;; Weigh the observables list
     let weighted-observables product-of-lists observables observables-weights
-    ;; Compare distance from individual's observables with their current identity traits
-    let a euclidean-distance weighted-observables [traits] of ID
+    ;; Compare distance from individual's observables with their current identity observable traits
+    let a euclidean-distance weighted-observables [traits-observable] of ID
     let temp-ID nobody
     ask identities [
-      ;; Compare distance from the individual's observables with the traits of the particular identity group
-      let b euclidean-distance [weighted-observables] of myself traits
+      ;; Compare distance from the individual's observables with the observable traits of the particular identity group
+      let b euclidean-distance [weighted-observables] of myself traits-observable
       ;; Calculate utility and decide if it is worth joining the other group.
       ;; If it is worth joining, remove individual from current group
       if (b > a) [
@@ -70,17 +71,22 @@ to join-group
   ]
 end
 
+;; Kill empty identities
 to remove-empty-identities
   ask identities [if empty? members [die]]
 end
 
 to evaluate-identity-distance
   ask identities [
-    let data[]
+    let data-observables[]
+    let data-non-observables[]
     ask turtle-set members [
-      set data lput observables data
+      set data-observables lput observables data-observables
+      set data-non-observables lput non-observables data-non-observables
     ]
-   set identity-distance group-distance traits data
+    print (group-distance traits-observable data-observables)
+    print (group-distance traits-non-observable data-non-observables)
+   ;set identity-distance (group-distance traits-observable data-observables + group-distance traits-non-observable data-non-observables)
   ]
 end
 
@@ -95,13 +101,13 @@ to determine-observable-weights
 
   ask identities [
     ;; Get the distance between the group members observable identity and the group's average observable identity
-    let members-traits[]
+    let members-traits-observable[]
     ;; Get a lists of lists
     ask turtle-set members [
-      set members-traits lput observables members-traits
+      set members-traits-observable lput observables members-traits-observable
     ]
 
-    let diff-group-member sum-of-differences traits members-traits
+    let diff-group-member sum-of-differences traits-observable members-traits-observable
 
     ;; For the observable identity, pick one that has the least distance
     let diff-group-member-select replace-with-one diff-group-member
@@ -111,18 +117,25 @@ to determine-observable-weights
 
     set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
   ]
+    ;; Scale down the global weights by proportion
+    let scaled-identity-weights multiply-list (sum-of-lists each-identity-weight) (1 / num-nodes)
+    set scaled-identity-weights multiply-list scaled-identity-weights observables-influence
+    let list-of-lists list n-values num-observables [ 1 ] scaled-identity-weights
     ;; Add all of the vectors together to form the global observable weights
-    set observables-weights sum-of-lists each-identity-weight
+    set observables-weights sum-of-lists list-of-lists
 end
 
 ;; Calculates a group's observable identity using group members's observables
 to evaluate-identities
   ask identities [
-    let data[]
+    let data-observables[]
+    let data-non-observables[]
     ask turtle-set members [
-      set data lput observables data
+      set data-observables lput observables data-observables
+      set data-non-observables lput nonobservables data-non-observables
     ]
-    set traits list-averages data
+    set traits-observable list-averages data-observables
+    set traits-nonobservable list-averages data-non-observables
   ]
 end
 
@@ -133,7 +146,7 @@ to setup
   ask patches [set pcolor white] ;; make background white
   set-agents ;; initialize the agents
   set-identities ;; initialize the identities
-  evaluate-identities ;; determine the traits of the identities
+  evaluate-identities ;; determine the observable and non-observables traits of the identities
   evaluate-identity-distance ;; Update distance measure
   evaluate-member-count ;; Update the membership count
   reset-ticks
@@ -276,10 +289,10 @@ to-report group-distance [main-list set-of-lists]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-745
-16
-1236
-508
+782
+59
+1273
+551
 -1
 -1
 3.0
@@ -326,7 +339,7 @@ num-observables
 num-observables
 1
 10
-10.0
+2.0
 1
 1
 NIL
@@ -399,10 +412,10 @@ NIL
 0
 
 MONITOR
-213
-11
-339
-56
+243
+10
+369
+55
 Number of Identities
 count identities
 1
@@ -410,22 +423,37 @@ count identities
 11
 
 PLOT
-213
-62
-486
-319
+243
+61
+767
+547
 Group Identities
 Membership Size
 Identity Distance
 0.0
 25.0
 0.0
-25.0
+5.0
 true
 false
 "" ";;erase what was plotted before\nplot-pen-reset"
 PENS
 "default" 1.0 2 -12345184 true "" "foreach sort identities [ x ->\nplotxy [member-count] of x [identity-distance] of x\n]"
+
+SLIDER
+6
+162
+178
+195
+observables-influence
+observables-influence
+0
+10
+3.0
+0.01
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
