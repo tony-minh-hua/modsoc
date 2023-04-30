@@ -412,15 +412,15 @@ count identities
 PLOT
 213
 62
-737
-548
+486
+319
 Group Identities
 Membership Size
 Identity Distance
 0.0
 25.0
 0.0
-5.0
+25.0
 true
 false
 "" ";;erase what was plotted before\nplot-pen-reset"
