@@ -45,15 +45,18 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 to join-group
   ask individuals [
-    ;; Weigh the observables list
-    let weighted-observables product-of-lists observables observables-weights
+    ;; Get difference between individual's observables and their current ID's observables
+    let diff difference-of-lists observables [traits-observable] of ID
+    set diff product-of-lists diff observables-weights
     ;; Compare distance from individual's observables with their current identity observable traits
-    let a (benefit-bigger-group [member-count] of ID - (euclidean-distance weighted-observables [traits-observable] of ID + euclidean-distance non-observables [traits-non-observable] of ID) * distance-penalty)
+    let a (benefit-bigger-group [member-count] of ID - (difference-euclidean-distance diff + euclidean-distance non-observables [traits-non-observable] of ID) * distance-penalty)
     let temp-ID nobody
-    ask identities [
+    ask identities with [self != [ID] of myself] [
       ;; Calculate utility and decide if it is worth joining the other group.
       ;; Compare distance from the individual's observables with the observable traits of the particular identity group
-      let b (benefit-bigger-group (1 + member-count) - (euclidean-distance [weighted-observables] of myself traits-observable + euclidean-distance [non-observables] of myself traits-non-observable) * distance-penalty)
+      let diff2 difference-of-lists [observables] of myself traits-observable
+      set diff2 product-of-lists diff2 observables-weights
+      let b (benefit-bigger-group (1 + member-count) - (difference-euclidean-distance diff2 + euclidean-distance [non-observables] of myself traits-non-observable) * distance-penalty)
       ;; If it is worth joining, remove individual from current group
       if (b > a) [
         set a b
@@ -73,7 +76,7 @@ to join-group
 end
 
 to-report benefit-bigger-group [group-size]
-  report (log (group-size * group-size-utility) e)
+  report ((1 - 1 / group-size) * group-size-utility)
 end
 
 ;; Kill empty identities
@@ -116,13 +119,14 @@ to determine-observable-weights
     let diff-group-member-select replace-with-one diff-group-member
 
     ;; Scale up the identity by number of members
-    let diff-group-member-select-scaled multiply-list diff-group-member-select count turtle-set members
+    let diff-group-member-select-scaled multiply-list diff-group-member-select length members
 
     set each-identity-weight lput diff-group-member-select-scaled each-identity-weight
   ]
+
     ;; Scale down the global weights by proportion
-    ;let scaled-identity-weights multiply-list (sum-of-lists each-identity-weight) (1 / num-nodes)
-    let scaled-identity-weights sum-of-lists each-identity-weight
+    let scaled-identity-weights multiply-list (sum-of-lists each-identity-weight) (1 / num-nodes)
+    ;let scaled-identity-weights sum-of-lists each-identity-weight
     set scaled-identity-weights multiply-list scaled-identity-weights observables-influence
     let list-of-lists list n-values num-observables [ 1 ] scaled-identity-weights
     ;; Add all of the vectors together to form the global observable weights
@@ -178,8 +182,8 @@ to set-agents
     set shape "circle"
     set color orange
     set size 2
-    set observables n-values num-observables [1 - (2 * random-float 1)] ;; create initial vector of observable traits
-    set non-observables n-values num-nonobservables [1 - (2 * random-float 1)] ;; create initial vector of non-observable traits
+    set observables n-values num-observables [observables-variability - (2 * random-float observables-variability)] ;; create initial vector of observable traits
+    set non-observables n-values num-nonobservables [non-observables-variability - (2 * random-float non-observables-variability)] ;; create initial vector of non-observable traits
     ]
 
   layout-circle (sort turtles) max-pxcor - 8
@@ -275,11 +279,27 @@ to-report product-of-lists [list1 list2]
   report product-list
 end
 
+;; Subtract values element by element between two lists and reports a list of their absolute difference
+to-report difference-of-lists [list1 list2]
+  let diff-list[]
+  (foreach list1 list2
+    [ [a b] -> set diff-list lput abs(a - b) diff-list ])
+  report diff-list
+end
+
 ;; Takes two lists and reports distance between them
 to-report euclidean-distance [list1 list2]
   let distance-measure 0
   (foreach list1 list2
     [ [a b] -> set distance-measure distance-measure + (a - b) * (a - b) ])
+  report sqrt(distance-measure)
+end
+
+;; Takes a difference as an input and reports it as euclidean-distance
+to-report difference-euclidean-distance [difference]
+  let distance-measure 0
+  foreach difference
+  [ [ a ] -> set distance-measure distance-measure + a * a]
   report sqrt(distance-measure)
 end
 
@@ -328,7 +348,7 @@ num-nodes
 num-nodes
 0
 1000
-100.0
+1000.0
 1
 1
 NIL
@@ -343,7 +363,7 @@ num-observables
 num-observables
 0
 10
-4.0
+10.0
 1
 1
 NIL
@@ -358,7 +378,7 @@ num-nonobservables
 num-nonobservables
 0
 10
-4.0
+0.0
 1
 1
 NIL
@@ -467,8 +487,8 @@ SLIDER
 group-size-utility
 group-size-utility
 1
-10
-2.0
+2.5
+2.5
 0.01
 1
 NIL
@@ -482,12 +502,53 @@ SLIDER
 distance-penalty
 distance-penalty
 0
-10
-2.0
+2
+0.25
 0.01
 1
 NIL
 HORIZONTAL
+
+SLIDER
+7
+275
+181
+308
+observables-variability
+observables-variability
+0
+2
+1.0
+0.01
+1
+NIL
+HORIZONTAL
+
+SLIDER
+7
+312
+207
+345
+non-observables-variability
+non-observables-variability
+0
+2
+1.0
+0.01
+1
+NIL
+HORIZONTAL
+
+MONITOR
+376
+10
+765
+55
+NIL
+observables-weights
+17
+1
+11
 
 @#$#@#$#@
 ## WHAT IS IT?
